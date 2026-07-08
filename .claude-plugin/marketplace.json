@@ -1,0 +1,26 @@
+{
+  "name": "threat-model",
+  "owner": {
+    "name": "Alpha-Omega",
+    "email": "info@alpha-omega.dev"
+  },
+  "metadata": {
+    "description": "Produce threat models for open-source projects"
+  },
+  "plugins": [
+    {
+      "name": "threat-model",
+      "source": "./",
+      "description": "Produce threat models for open-source projects: the security contract between a project and its users, structured for downstream integrators and vulnerability triagers.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Alpha-Omega"
+      },
+      "license": "MIT",
+      "repository": "https://github.com/alpha-omega-security/threat-model",
+      "homepage": "https://github.com/alpha-omega-security/threat-model",
+      "category": "security",
+      "keywords": ["threat-model", "security", "open-source", "vulnerability", "triage", "trust-boundary", "alpha-omega"]
+    }
+  ]
+}
