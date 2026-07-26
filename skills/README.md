@@ -1,6 +1,6 @@
 # Threat-model skill set
 
-A set of VS Code agent skills that produce a **high-quality threat model** for a
+A set of [agent skills](https://agentskills.io/) that produce a **high-quality threat model** for a
 targeted open-source repository or package — the *implicit security contract*
 between a project and its downstream users (assumptions, guarantees, disclaimed
 properties, misuses), **not** an audit, pentest, CVE list, or build-hygiene
