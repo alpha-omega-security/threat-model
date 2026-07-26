@@ -1,6 +1,6 @@
 # threat-model
 
-An [agent skill](https://agentskills.io/) for producing threat models for open-source projects.
+A set of [agent skills](https://agentskills.io/) for producing threat models for open-source projects — an orchestrator plus independently invocable specialists.
 
 The output is a document describing the implicit security contract between a project and its downstream users: what the project assumes about its environment and inputs, which security properties it claims, which it explicitly disclaims, and which threats are left to the integrator. It is written to serve two readers at once: the downstream integrator deciding what they are now responsible for, and the maintainer or triager deciding whether an inbound vulnerability report is valid, out of model, or by design.
 
@@ -17,7 +17,7 @@ This is not a vulnerability scanner or audit tool. It produces a contract, not f
 
 ### Other agents
 
-Any [agentskills.io-compatible](https://agentskills.io/clients) agent can load the skill directly from `skills/threat-model/`. Clone the repo and point your agent's skill path at that directory, or copy it into your project's `.claude/skills/` (or equivalent).
+Any [agentskills.io-compatible](https://agentskills.io/clients) agent can load these skills directly from `skills/`. Clone the repo and point your agent's skill path at that directory, or copy its contents into your project's `.claude/skills/` (or equivalent). Keep the skill folders as siblings — the specialists share the references under `threat-model/references/` via relative paths.
 
 ## Usage
 
@@ -55,16 +55,26 @@ A `docs/threat-model.md` (or similar) with:
 ## Structure
 
 ```
-skills/threat-model/
-├── SKILL.md                          # procedure (§1-§3, §5) + pointers
-└── references/
-    ├── output-structure.md           # §4: every section of the output document
-    ├── question-bank.md              # §6: maintainer questions, grouped by wave
-    ├── worked-sketches.md            # §7: zlib and reverse-proxy examples
-    └── self-check.md                 # §8: pre-publish checklist
+skills/
+├── threat-model/                     # orchestrator: drives the 3.1–3.7 procedure; owns the shared references
+│   ├── SKILL.md
+│   └── references/
+│       ├── principles.md             # what a threat model is/is not; the four-question framework
+│       ├── output-structure.md       # the §1.1–§1.19 document spec, provenance tags, disposition set
+│       ├── question-bank.md          # maintainer questions, grouped by wave
+│       ├── sidecar-schema.md         # the threat-model.yaml schema
+│       ├── self-check.md             # the finalize gates
+│       └── worked-example.md         # a zlib flavor sketch
+├── threat-model-recon/               # orient + mine existing docs (phases 3.1–3.2)
+├── threat-model-surface/             # deep in-scope code pass (phase 3.3)
+├── threat-model-interview/           # maintainer question waves (phase 3.4)
+├── threat-model-authoring/           # draft the prose document (phase 3.5)
+├── threat-model-backtest/            # validate against historical findings (phase 3.6)
+├── threat-model-sidecar/             # emit + validate threat-model.yaml (§1.19)
+└── threat-model-triage/              # downstream: route one finding to a disposition
 ```
 
-Section numbers are shared across all files so cross-references (`see §4.8`) resolve regardless of which file you are reading.
+The orchestrator and its specialists share the §1.1–§1.19 section numbering, so cross-references (`see §1.8`) resolve regardless of which file you are reading. See [`skills/README.md`](./skills/README.md) for the call graph and per-skill roles.
 
 ## Related
 
