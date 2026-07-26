@@ -1,116 +1,154 @@
-# Reference question bank (§6)
+# Reference question bank
 
-Referenced from [SKILL.md](../SKILL.md) §3.2.
+Pull from these in waves of 3–7, reworded for the specific project. Owned by the
+`threat-model-interview` specialist; the orchestrator and recon specialists also
+draw wave-1 questions from §Scope.
+
+**Framing rule.** Frame every question as a *proposed answer* for the maintainer
+to confirm, correct, or strike — not an open "what is X?". Reserve genuinely open
+questions for cases where no reasonable default exists.
+
+> *Instead of:* "What is the adversary model?"
+> *Ask:* "We believe the only adversary in scope is whoever supplies the
+> compressed input; in-process callers and side-channel observers are out of
+> scope. Is that right, and is anything missing?"
+
+The **first wave** must cover scope and intended use — everything depends on it
+— plus the **configuration-support** question (§Build, last item) and the
+**side-effects inventory** (§Environment, last item). Combine related prompts as
+needed to keep the wave within 3–7 questions; do not defer either required topic.
 
 ---
 
-## 6. Reference question bank
+## Scope and intended use (ask first → §1.2/§1.3/§1.4)
 
-Pull from these in waves. Reword for the specific project. The first wave
-should be drawn from §6.1.
-
-### 6.1 Scope and intended use (ask first)
-0. Is this project intended for production use, or is it a
-   reference/research/educational implementation? If the latter, is there
-   a hardened fork you point people at?
-1. Who is the intended caller of this project, and at what trust level do you
-   assume they operate?
-2. What deployment shapes did you have in mind when designing it
-   (in-process library, CLI, daemon, embedded, etc.)?
-3. What use cases do you consider clearly *out of scope* — uses people
-   sometimes attempt that you do not support?
-4. Is there a security boundary inside the project, or is the entire API
+1. Who is the intended caller, and at what trust level do you assume they
+   operate?
+2. What deployment shapes did you design for (in-process library, CLI, daemon,
+   embedded, kernel)?
+3. What use cases are clearly out of scope — uses people attempt that you do not
+   support?
+4. Is there a security boundary *inside* the project, or is the entire API
    surface the boundary?
 
-### 6.2 Inputs and trust
-5. Of the inputs accepted by the public API, which do you assume are
-   attacker-controllable, and which do you assume are trusted?
-6. Are there documented or undocumented size/shape/rate limits on inputs
-   beyond which behavior is undefined or degraded?
-7. Does any input flow into resource allocation (memory, threads, file
-   handles) in a way whose magnitude is controlled by the input?
-7a. Does the project read back its own persisted state (data directory,
-    cache, project file, serialized session)? If someone can write to
-    that location and nothing else, are they in your adversary model?
-7b. Where the project *emits* something another interpreter consumes
-    (HTML, SQL, shell, headers, log lines), do you guarantee the output
-    is safe for that sink, or is escaping the caller's job?
+## Inputs, outputs, and trust (→ §1.7/§1.8)
 
-### 6.3 Adversary model
-8. Who is the adversary you most cared about when designing this? Who is
-   explicitly out of scope?
-9. What capabilities does the assumed adversary have — can they observe
-   timing? Memory? Influence inputs? Inject inputs? Cause restarts?
-10. Are there adversaries sometimes assumed by users that you do *not* defend
-    against (e.g., side-channel adversaries, co-tenant adversaries, malicious
-    callers)?
-10a. If the project is deployed multi-tenant, is one authenticated tenant
-    attacking another in scope, or is tenant isolation the operator's
-    problem?
+5. Of the public-API inputs, which do you assume attacker-controllable and which
+   trusted?
+6. Are there documented or undocumented size/shape/rate limits beyond which
+   behavior is undefined or degraded?
+7. Does any input flow into resource allocation (memory, threads, file handles)
+   in a way whose magnitude the input controls?
+8. Does the output carry any guarantee — sanitization, normalization, structural
+   invariants (valid encoding, bounded depth, matching length fields) — or is it
+   exactly as untrusted as the input it derives from? What do integrators most
+   often wrongly assume about it?
 
-### 6.4 Properties the project tries to uphold
-11. What properties do you believe the project provides given valid input,
-    and where are those properties documented or tested?
-12. Are any of those properties only conditional (e.g., only on certain
-    platforms, only when certain features are compiled in)?
-12a. Where is the line on resource consumption — is super-linear CPU or
-    memory in input size a bug? Is a hang on pathological input a bug?
-    Or do you make no resource guarantee at all?
+## Dependencies (→ §1.9)
 
-### 6.5 Properties the project does *not* uphold
-13. What security properties have you deliberately decided are *not* this
+9. Which runtime dependencies do you rely on for security-relevant behavior, and
+   for what property in each case? If "none beyond libc/the runtime," can we
+   state that as a guarantee?
+10. For vendored/bundled third-party code that ships in supported artifacts: is
+    it covered by your security process at the pinned version, or deferred to
+    upstream? Who ships the fix when upstream patches?
+
+## Adversary model (→ §1.10)
+
+11. Who is the adversary you most cared about? Who is explicitly out of scope?
+12. What capabilities does the assumed adversary have — observe timing? memory?
+    influence inputs? inject inputs? cause restarts?
+13. Are there adversaries users sometimes assume that you do *not* defend against
+    (side-channel, co-tenant, malicious caller)?
+
+## Properties provided (→ §1.11)
+
+14. What properties do you believe the project provides given valid input, and
+    where are they documented or tested?
+15. Are any of those properties conditional (certain platforms only, certain
+    features compiled in only)?
+16. Where is the line on resource consumption — is super-linear CPU/memory in
+    input size a bug? Is a hang on pathological input a bug? Or is no resource
+    guarantee made at all?
+
+## Properties NOT provided (→ §1.12)
+
+17. What security properties have you deliberately decided are not this
     project's job?
-14. Are there functions that look general-purpose but are unsafe for a
-    particular use (e.g., comparison functions that are not constant-time,
-    RNG that is not cryptographic, hash that is not collision-resistant)?
-14a. Do error responses, log lines, or stack traces returned to an
-    untrusted caller count as information disclosure, or is scrubbing
-    them the deployer's job?
+18. Are there functions that look general-purpose but are unsafe for a
+    particular use (comparison not constant-time, RNG not cryptographic, hash
+    not collision-resistant)?
 
-### 6.6 Misuse and downstream responsibility
-15. What is the most common way you have seen this project misused?
-16. What single thing do you wish every integrator did before calling the
-    API, that they often do not?
-17. Are there configurations or modes that should never be combined?
-18. Does the project expose anything that *looks like* a security
-    primitive but is not one (a checksum mistaken for a MAC, a hash
-    mistaken for collision-resistant, a PRNG mistaken for a CSPRNG, a
-    sandbox mistaken for an isolation boundary)?
-18a. What do scanners, fuzzers, or security researchers most often
-    report against this project that you consider a non-finding, and
-    why? (Feeds §4.11a.)
+## Misuse and downstream responsibility (→ §1.13/§1.14/§1.15)
 
-### 6.7 Environmental assumptions
-19. What does the project assume about its host (OS, allocator, threading,
+19. What is the most common way you have seen this project misused?
+20. What single thing do you wish every integrator did before calling the API,
+    that they often do not?
+21. Are there configurations or modes that should never be combined?
+22. Does the project expose anything that *looks like* a security primitive but
+    is not (checksum≠MAC, hash≠collision-resistant, PRNG≠CSPRNG,
+    sandbox≠isolation)?
+23. What do scanners/fuzzers/researchers most often report that you consider a
+    non-finding, and why? (Feeds §1.15.)
+
+## Environmental assumptions (→ §1.5)
+
+24. What does the project assume about its host (OS, allocator, threading,
     signal handling, byte order, integer width)?
-20. Are there platforms that are nominally supported but not really first
-    class for security purposes?
-21. What does the project *refrain* from doing to its host — no signal
-    handlers, no spawning, no sockets, no env-var reads, no global state?
-    Which of these are deliberate guarantees vs. incidental?
+25. Are there platforms nominally supported but not first-class for security?
+26. What does the project *refrain* from doing to its host — no signal handlers,
+    no spawning, no sockets, no env-var reads, no global state? Which are
+    deliberate guarantees vs. incidental? (Highest-priority negative claim.)
 
-### 6.8 Build and configuration variants
-22. Which compile-time defines, feature flags, or runtime configuration
-    knobs change the security envelope? What is the default for each, and
-    which do you actively discourage?
-23. Is there code shipped in the repository (`contrib/`, `examples/`,
-    bindings, demos) that you do not consider part of the project for
-    security purposes?
-23a. For each §4.5a knob whose *default* is the less-secure value: is
-    that default the supported production posture (so a report against
-    it is `VALID`), or a dev-convenience that operators are expected to
-    flip (so it is `OUT-OF-MODEL: non-default-build`)?
+## Build and configuration variants (→ §1.6)
 
-### 6.9 Stability and revision
-24. What kind of change to the project would invalidate the answers you have
+27. Which compile-time defines, feature flags, or runtime knobs change the
+    security envelope? Default for each, and which do you actively discourage?
+28. Is there shipped code (`contrib/`, `examples/`, bindings, demos) you do not
+    consider part of the project for security purposes?
+29. We believe support posture, not defaultness, controls scope: every supported
+    configuration is in-model, while only configurations explicitly marked
+    dev-only, discouraged for the modeled exposure, or unsupported route to
+    `OUT-OF-MODEL: non-default-build`. Confirm the stance for each security-
+    relevant knob, especially any less-secure default. (Wave 1 — reshapes
+    §1.6/§1.11/§1.13/§1.17.)
+
+## Stability and revision (→ §1.16)
+
+30. What kind of change to the project would invalidate the answers you have
     just given?
 
-### 6.10 Delegated surface and extension points
-25. Which of your linked or vendored dependencies receive bytes that
-    originated from an attacker-controllable input? For each: if a
-    researcher finds a crash there via your entry point, do you own the
-    report or do you redirect them upstream?
-26. If the project loads plugins, extensions, or user-defined functions:
-    are plugin authors trusted at the same level as core contributors, or
-    do you claim any isolation between a plugin and the host?
+## Contract edge conditions (→ §1.7/§1.10/§1.11/§1.12)
 
+31. We believe operations are required to preserve documented state invariants
+    if validation, allocation, a caller callback, or a delegated collaborator
+    throws; alternatively, partial mutation is explicitly permitted. Which is
+    the intended contract?
+32. We believe supported numeric behavior ends at `<project-specific limit>`;
+    above it the API must fail before mutation rather than wrap, truncate, or
+    return an incorrect result. Confirm or provide the actual boundary.
+33. We believe self-referential or cyclic object graphs are unsupported inputs,
+    and recursive operations need not detect them. Confirm, or identify the
+    operations that promise cycle-safe behavior.
+34. We believe callback-bearing inputs (comparators, predicates, factories,
+    transformers, virtual collaborators) are trusted code even when the data
+    passed through them is attacker-controlled. Confirm and identify exceptions.
+35. We believe native deserialization is supported only for trusted streams and
+    does not promise to sanitize restored concrete types or suppress their
+    callbacks. Confirm, and identify any classes with stronger reconstruction
+    guarantees.
+36. We believe weak/soft-reference and cache-like components must tolerate
+    lifecycle events such as GC clearing or invalidation without violating
+    their public return/exception contract. Confirm or disclaim that behavior.
+37. We believe stack use, heap use, and CPU time have separate thresholds:
+    `<proposed thresholds>`. Confirm which forms of super-linear work, deep
+    recursion, or proportional allocation count as bugs.
+38. We believe normalization/canonicalization and probabilistic-result semantics
+    are provided only where explicitly documented; otherwise downstream users
+    must not infer them. Confirm and name any stronger guarantees.
+
+## Coexistence (meta — ask in wave 1 when a prior model exists)
+
+39. A prior `SECURITY.md` / doc titled "threat model" already states model
+    content. Should the new document (a) replace that section, (b) become the
+    canonical model it links to, or (c) sit alongside as an expansion?

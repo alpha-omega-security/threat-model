@@ -1,54 +1,113 @@
-# Self-check before finalizing (§8)
+# Self-check before finalizing
 
-Referenced from [SKILL.md](../SKILL.md) §3.4.
+Four gates. Every item in every gate must pass; if any check fails, iterate
+before publishing. The orchestrator runs this gate after the authoring +
+sidecar + backtest specialists have reported.
 
----
+## Gate 1 — Provenance and authority
 
-## 8. Self-check before finalizing
+- [ ] Every non-trivial claim carries a *(documented, source)* /
+      *(maintainer, YYYY-MM)* / *(assumption, QN)* / *(inferred, QN)* tag; the
+      header explains the legend; every source/Q-ID resolves; **no hedge-tag
+      variants** ("implicit", "documented in purpose", "generally known").
+- [ ] The header reports a draft-confidence count and the correct status,
+      including `unratified draft` where the §3.7 termination policy applied, and
+      declares the **triage policy** (`strict` default / `relaxed`).
+- [ ] Every *(inferred)* and *(assumption)* tag has a matching item in §1.18,
+      and every item states a proposed answer. (Edge-case probes of
+      *(documented)* claims and meta/ownership questions without an
+      inferred/assumption backing are permitted.)
+- [ ] Demonstrably-absent guarantees are recorded as *(documented)* §1.12
+      disclaimers, not `unresolved` rows; `unresolved` is reserved for
+      dimensions where a guarantee plausibly exists but was not confirmed.
+- [ ] No closing disposition is licensed by an *(inferred)* claim, regardless
+      of model status. An *(assumption)* licenses a close only under `relaxed`
+      policy, only for a low-blast-radius route, and never a security-critical
+      `property-disclaimed`, `KNOWN-NON-FINDING`, or `dependency-contract`. An
+      accepted model has zero inferred and zero assumption claims; any remaining
+      one requires `under maintainer review` or `unratified draft` status.
+- [ ] Any pre-existing `SECURITY.md` (or equivalent) threat-model content is
+      fully absorbed: the new model is a strict superset, the back-map appendix
+      exists, and the coexistence question was asked.
 
-Before declaring the threat model done, verify:
+## Gate 2 — Coverage
 
-- [ ] Every section is either substantive or marked N/A with a reason.
+- [ ] Every section is substantive or marked N/A with a reason.
+- [ ] Distinct component families (core vs OS-touching convenience layer vs
+      shipped-but-unsupported) are each modeled at their own trust level or
+      explicitly placed out of scope; if the split rule applied, sibling models
+      are cross-linked.
+- [ ] Build/config variants that change the envelope are enumerated (§1.6) or
+      the section states there are none; for each insecure-default knob, the
+      maintainer's ruling (supported vs dev-only) is recorded.
+- [ ] §1.7 contains a per-input-operand trust *table*, not just prose; a partial
+      table (per the §3.3 timebox) has its uncovered portion explicitly marked.
+- [ ] Every parameter records its control kind; executable callbacks, concrete
+      types/classes, object topology, collaborator implementations, sizes, and
+      serialized state are not collapsed into a single attacker-control boolean.
+- [ ] Every in-scope component family has a complete contract-dimension matrix.
+      Every applicable row is claimed, disclaimed, N/A with reason, or
+      unresolved; no cell is blank.
+- [ ] Stateful families state postconditions for validation, allocation,
+      callback, and collaborator failures, or explicitly disclaim atomicity.
+- [ ] §1.8 states the taint of every output channel — including the "output is
+      as untrusted as input" one-liner where it applies — and structural output
+      invariants are promoted to §1.11.
+- [ ] §1.9 states per-dependency trust assumptions and the vendored-code policy,
+      or makes the explicit zero-dependency claim.
+- [ ] §1.12 (NOT provided) and §1.13 (downstream responsibilities) are at least
+      as substantive as §1.11 (provided). If not, the model is under-specified.
+- [ ] §1.12 names at least the obvious false-friend properties and the
+      well-known attack classes for this category of project.
+
+## Gate 3 — Triage readiness
+
+- [ ] The §1.1 header contains the triager quick-start, and its steps reference
+      sections that actually exist in this document.
+- [ ] Every §1.11 property carries a violation symptom and a severity tier;
+      resource properties state a threshold.
+- [ ] §1.15 (known non-findings) is populated or marked N/A with a reason.
+- [ ] §1.17 enumerates the closed disposition set, each citing its licensing
+      section, including `dependency-contract`; the all-status closure
+      constraint (inferred escalates; assumption governed by the triage policy;
+      security-critical floor) is present.
+- [ ] §1.17 states deterministic precedence, including exact §1.15 matches, so
+      multiple failed preconditions still route to one disposition.
+- [ ] The phase-3.6 backtest was performed: the historical corpus routed with
+      each item landing on exactly one disposition, and the results (corpus size,
+      revisions triggered) are recorded in the header.
+- [ ] Backtest coverage is stratified across every in-scope component family and
+      applicable contract dimension; large corpora were clustered by sink and
+      attack class, with every cluster represented.
+- [ ] Every `MODEL-GAP` produced a proposed §1.11 guarantee, §1.12 disclaimer, or
+      unresolved matrix row plus §1.18 question, and the affected cluster was
+      rerouted after revision.
+- [ ] An accepted model has no unexplained applicable matrix row and no unowned
+      `MODEL-GAP`. An unratified draft identifies each remaining gap explicitly.
+- [ ] A triager handed an arbitrary new finding — tool, human, or AI — can route
+      it to exactly one §1.17 disposition, citing a section, without consulting
+      the maintainer.
+- [ ] An orchestrated run emits a sidecar that conforms to schema v2, identifies
+      the exact prose content it derives from, and was regenerated after the
+      last prose change. Prose-only output is permitted only for standalone
+      authoring.
+- [ ] A sidecar used for automated closure carries provenance for every
+      closure-driving parameter, output invariant, component, adversary,
+      host-side-effect claim, dependency, build condition, property, and known
+      non-finding, plus the canonical first-match disposition order.
+
+## Gate 4 — Style and scope
+
 - [ ] No bullet would be more at home in a code review or audit report.
 - [ ] No bullet restates what the README/API docs already say.
-- [ ] Every non-trivial claim carries a *(documented)* / *(maintainer)* /
-      *(inferred)* tag, the header explains the legend, and **no hedge-tag
-      variants** ("implicit", "documented in purpose", "generally known")
-      have crept in.
-- [ ] The header reports a draft-confidence tag count.
-- [ ] Every *(inferred)* tag has a matching open question in §4.14, and
-      every open question states a proposed answer.
-- [ ] If the project has distinct component families (core vs.
-      OS-touching convenience layer vs. plugin loader vs.
-      shipped-but-unsupported), each is modeled at its own trust level or
-      explicitly placed out of scope.
-- [ ] §4.5a, §4.6a, §4.6b, and §4.11a are each populated or marked N/A
-      with a reason; for each §4.5a knob whose default is the less-secure
-      value, the maintainer's ruling is recorded.
-- [ ] §4.6 either has a per-parameter trust table or states a default
-      trust level plus an exception list. Persisted state read on startup
-      has a row.
-- [ ] §4.8 properties are stated as a delta from the language/runtime
-      baseline, not as a restatement of it.
-- [ ] §4.9 (properties NOT provided) and §4.10 (downstream responsibilities)
-      are at least as substantive as §4.8 (properties provided). If they
-      aren't, the model is probably under-specified.
-- [ ] §4.9 names at least the obvious "false-friend" properties and the
-      well-known attack classes for this category of project.
-- [ ] Every §4.8 property carries a violation symptom and a severity
-      tier (critical/high/moderate/low), and resource properties state a
-      threshold.
-- [ ] §4.13 enumerates the triage dispositions and each cites the
-      section that licenses it; the set covers dependency findings
-      (`report-upstream`).
-- [ ] Any contested maintainer position is recorded as contested, not
-      averaged, and has a §4.14 governance entry.
-- [ ] A reader who has never seen the project can answer: "what threats has
-      the library taken responsibility for, and which have been left to me?"
-- [ ] A triager handed an arbitrary finding — from a tool, a human, or
-      an AI — can route it to exactly one §4.13 disposition, citing a
-      section, without consulting the maintainer.
+- [ ] A reader who has never seen the project can answer: "what threats has the
+      library taken responsibility for, and which have been left to me?"
 - [ ] The document fits comfortably in one sitting (typically 3–8 pages).
       Sprawl is a smell.
-
-If any check fails, iterate before publishing.
+- [ ] **Reads at the level of good developer docs, not a research paper.** Spot-
+      check the densest paragraphs: sentences carry one idea each (no three-`and`
+      chains or semicolon-joined clauses), words are plain ("uses", not
+      "utilizes"), voice is active with a real subject, and piled-up noun stacks
+      or long inline lists have been broken into short bullets or table rows.
+- [ ] No sentence relies on a §-cross-reference to be understood — the citation
+      supports the point, it does not replace the sentence.
