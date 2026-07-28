@@ -77,6 +77,17 @@ documented evidence only when the project publicly identifies it as normative.
 ## 1.1 Header
 
 - Project name, version/commit, date, author(s) of the threat model.
+- **Generation metadata** — when the model is produced with AI or automated
+  assistance, record the tooling so a reader can weigh the draft:
+  - **Model/agent** — the producing model or agent, name + version (e.g.
+    "Claude Opus 4.8"). Mark "human-authored" when no model was involved.
+  - **Effort level** — the reasoning/effort setting the run used (e.g. low /
+    medium / high, or the provider's own label), since it bears on depth and
+    confidence.
+  - **Plugins/skills** — the skills, plugins, and MCP servers that drove
+    production (the threat-model orchestrator and each specialist invoked, plus
+    any external tooling such as a binlog or repo-search server). List what was
+    actually used, not the full catalog.
 - **Version binding** — the model is versioned alongside the project. A report
   against version *N* is triaged against the model as it stood at *N*, not HEAD.
 - **Reporting cross-reference** — one line: §1.11 (claimed-property) findings
