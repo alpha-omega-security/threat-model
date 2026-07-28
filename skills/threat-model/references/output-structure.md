@@ -90,6 +90,10 @@ documented evidence only when the project publicly identifies it as normative.
     actually used, not the full catalog.
 - **Version binding** — the model is versioned alongside the project. A report
   against version *N* is triaged against the model as it stood at *N*, not HEAD.
+  The modeled version is a **published, committed** ref (a release tag or merged
+  commit), never the author's working tree: uncommitted changes, unmerged
+  branches, and draft PRs are out of scope because a downstream reader cannot see
+  them.
 - **Reporting cross-reference** — one line: §1.11 (claimed-property) findings
   are reported per the project's disclosure channel; §1.3 / §1.12 findings are
   closed citing this document.

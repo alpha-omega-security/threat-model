@@ -31,6 +31,13 @@ re-deriving the reasoning:
 - A coding-standards or secure-coding guide.
 - A list of every theoretical attack. Focus on threats the design has an opinion
   about — by addressing them or by declining to.
+- A description of your private working state. Model the **published, committed**
+  project at the modeled version — the code, docs, and rulings a downstream
+  reader can actually see. Do **not** fold in uncommitted local edits, unmerged
+  branches, draft PRs, stashes, or any other work that is invisible outside your
+  checkout. A shipped model that cites context nobody else can see only muddies
+  the contract. If in-flight work matters, model it once it lands, or note it
+  under §1.16 as a change that *would* revise the model.
 
 > If you write "the project should…" or "we recommend…", stop — that is audit
 > output. The model describes the project as it **is**, not as it should be.
