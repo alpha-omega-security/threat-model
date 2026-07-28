@@ -37,6 +37,23 @@ Draft a SECURITY.md scope section.
 
 The skill runs draft-first by default: it orients on the codebase and existing docs, writes a provisional model with every claim tagged `(documented)` / `(maintainer)` / `(inferred)`, and collects open questions for the maintainers into waves. Answering a wave promotes the matching claims and retires the questions.
 
+### Answering the open questions
+
+The open questions live **inside the model itself**, in the `§1.18 Open questions for the maintainers` section — that section *is* the working scratchpad, so you do not need a separate document. Each question states a proposed answer and names the section its answer lands in, so you (or a maintainer) can react to a draft rather than fill in a blank questionnaire.
+
+To resolve them, hand the answers back to the agent and ask it to continue — for example:
+
+```
+Here are answers to the §1.18 open questions: Q3 yes, Q4 no (we never spawn processes), Q7 confirmed. Update the threat model.
+```
+
+The agent re-runs the interview/authoring loop: it promotes each answered claim from `(inferred)` / `(assumption)` to `(maintainer, YYYY-MM)`, deletes the resolved questions, updates the affected contract-dimension rows and confidence counts, re-runs the backtest on the changed areas, and regenerates the YAML sidecar. There is no separate command — re-invoking the skill with the answers continues the same modeling exercise. You can also answer in waves; each pass shrinks §1.18 until the model reaches `accepted` (zero inferred/assumption claims left).
+
+### When to re-run
+
+Re-run a threat-model update when something changes what the model describes. Section `§1.16 Conditions that would change this model` lists the triggers — a new public API or input format, a new network surface or deployment context, a changed configuration default, a new or updated dependency, a shipped-but-unsupported component promoted to core, or any inbound report that cannot be cleanly routed to a disposition. Also re-bind the model to each release, since it is versioned alongside the project (a report against version *N* is triaged against the model as it stood at *N*).
+
+
 ## What you get
 
 A `docs/threat-model.md` (or similar) with:
