@@ -6,6 +6,8 @@ The output is a document describing the implicit security contract between a pro
 
 This is not a vulnerability scanner or audit tool. It produces a contract, not findings.
 
+New to security threat modeling? The [glossary](./skills/threat-model/references/glossary.md) defines the jargon — dispositions, sinks, disclaimed properties, provenance tags — in plain language for maintainers coming at this fresh.
+
 ## Install
 
 ### Claude Code
@@ -81,6 +83,7 @@ skills/
 │       ├── question-bank.md          # maintainer questions, grouped by wave
 │       ├── sidecar-schema.md         # the threat-model.yaml schema
 │       ├── self-check.md             # the finalize gates
+│       ├── glossary.md               # plain-language definitions of the jargon
 │       └── worked-example.md         # a zlib flavor sketch
 ├── threat-model-recon/               # orient + mine existing docs (phases 3.1–3.2)
 ├── threat-model-surface/             # deep in-scope code pass (phase 3.3)

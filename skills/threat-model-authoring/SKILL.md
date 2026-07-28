@@ -82,11 +82,12 @@ The deliverable deliberately mixes **both kinds of content in one document**:
 
 - **§1.1** — version binding, reporting cross-reference, status (incl.
   `unratified draft` when §3.7 applies), triage-policy declaration (`strict`
-  default / `relaxed`), provenance legend, draft-confidence count, backtest note,
-  sibling models, **generation metadata** (producing model/agent + version,
-  effort level, and the plugins/skills actually used, or "human-authored"), and
-  the boxed **triager quick-start** whose steps reference sections that actually
-  exist.
+  default / `relaxed`), provenance legend, glossary pointer (link the
+  plain-language [glossary](../threat-model/references/glossary.md) so non-expert
+  readers can decode the jargon), draft-confidence count, backtest note, sibling
+  models, **generation metadata** (producing model/agent + version, effort level,
+  and the plugins/skills actually used, or "human-authored"), and the boxed
+  **triager quick-start** whose steps reference sections that actually exist.
 - **§1.7** — a *table*, not prose; mark any untabled remainder from the surface
   timebox. Include control kinds and the per-family contract-dimension matrix.
   Every matrix row is claimed, disclaimed, N/A with reason, or unresolved.

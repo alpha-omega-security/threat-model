@@ -107,6 +107,10 @@ documented evidence only when the project publicly identifies it as normative.
   low-blast-radius closes provisionally (see §1.17). The security-critical floor
   holds under both policies.
 - **Provenance legend** — the one-line key for the four tags above.
+- **Glossary pointer** — one line linking the plain-language
+  [glossary](glossary.md) (or an inline copy) so a non-expert reader can decode
+  dispositions, sinks, disclaimed properties, and provenance without prior
+  security-modeling background.
 - **Draft confidence** — a count of *(documented)* / *(maintainer)* /
   *(inferred)* claims (e.g., "29 documented / 0 maintainer / 30 inferred"). When
   the model uses *(assumption)* tags, append "/ N assumption".

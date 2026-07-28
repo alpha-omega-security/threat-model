@@ -64,6 +64,7 @@ generation and the finalize gate run afterward as publication gates.
 - [`question-bank.md`](./threat-model/references/question-bank.md) — reference questions, by wave.
 - [`sidecar-schema.md`](./threat-model/references/sidecar-schema.md) — the `threat-model.yaml` schema.
 - [`self-check.md`](./threat-model/references/self-check.md) — the four finalize gates.
+- [`glossary.md`](./threat-model/references/glossary.md) — plain-language definitions of the threat-modeling jargon for non-expert maintainers.
 - [`worked-example.md`](./threat-model/references/worked-example.md) — a zlib flavor sketch.
 
 ## Usage
