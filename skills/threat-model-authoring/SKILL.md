@@ -109,6 +109,9 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   callback/collaborator exceptions and partial mutation.
 - **§1.17** — the closed disposition set, each citing its licensing section,
   including `dependency-contract`; add the all-status closure constraint.
+  Optionally add the Mermaid triage-decision flowchart when it aids a non-expert
+  triager — it must mirror the precedence order exactly, not introduce a second
+  rule.
 - **Closure safety** — an *(inferred)* claim never licenses a closing
   disposition, regardless of status. An *(assumption)* closes only what the
   declared triage policy permits (`strict`: never; `relaxed`: low-blast-radius
