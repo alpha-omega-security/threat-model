@@ -137,7 +137,7 @@ vuln and stays at or below `--cry-wolf-threshold`:
 ```pwsh
 python tests/harness/replay_eval.py --runner stub --repeats 3
 python tests/harness/replay_eval.py --runner subprocess --repeats 3 `
-    --command "pwsh ./scripts/triage.ps1 -Model {model} -Sidecar {sidecar} -Report {report}"
+    --command "python ./triage.py --model {model} --sidecar {sidecar} --report {report}"
 ```
 
 Placeholders: `{name} {model} {sidecar} {report} {id} {outdir} {skill_dir}`. The
@@ -172,7 +172,7 @@ python tests/harness/run_job.py --repo https://github.com/madler/zlib
 $env:GITHUB_TOKEN = "<token>"
 python tests/harness/run_job.py --repo https://github.com/madler/zlib `
     --with-history --token $env:GITHUB_TOKEN `
-    --triage-command "pwsh ./scripts/triage.ps1 -Model {model} -Report {report}"
+    --triage-command "python ./triage.py --model {model} --report {report}"
 ```
 
 The generation command uses the same placeholders as `run_eval.py`
@@ -232,7 +232,7 @@ skill, triage the corpus, and write `threat-model.md`, `threat-model.yaml`, and
 
 ```pwsh
 python tests/harness/run_eval.py --runner subprocess `
-    --command "pwsh ./scripts/generate.ps1 -Project {name} -Repo {repo} -Ref {ref} -Corpus {corpus} -Out {outdir} -SkillDir {skill_dir}"
+    --command "python ./new_threat_model.py --project {name} --repo {repo} --ref {ref} --corpus {corpus} --out {outdir} --skill-dir {skill_dir}"
 ```
 
 Placeholders: `{name} {repo} {ref} {corpus} {outdir} {skill_dir}`. The

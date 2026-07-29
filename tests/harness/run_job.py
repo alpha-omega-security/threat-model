@@ -21,7 +21,7 @@ optionally, the repo's own advisory history.
 Example:
     python run_job.py --repo https://github.com/madler/zlib \\
         --with-history --token $env:GITHUB_TOKEN \\
-        --triage-command "pwsh ./scripts/triage.ps1 -Model {model} -Report {report}"
+        --triage-command "python ./triage.py --model {model} --report {report}"
 """
 from __future__ import annotations
 
