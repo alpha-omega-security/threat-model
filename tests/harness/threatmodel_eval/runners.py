@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -126,7 +127,8 @@ class SubprocessRunner:
             skill_dir=str(self.skill_dir),
         )
         proc = subprocess.run(
-            cmd, shell=True, cwd=str(self.cwd) if self.cwd else None,
+            shlex.split(cmd), shell=False,
+            cwd=str(self.cwd) if self.cwd else None,
             timeout=self.timeout, capture_output=True, text=True,
             encoding="utf-8", errors="replace", env={**os.environ},
         )
