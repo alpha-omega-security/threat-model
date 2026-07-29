@@ -49,7 +49,11 @@ def check_provenance(model: Model) -> Iterable[Finding]:
     )
 
     header = model.header.lower()
-    legend_ok = "provenance" in header and all(
+    # Accept "provenance" or a plainly-labelled "legend" as the anchor word. The
+    # anchor distinguishes a real legend from the bare confidence tally (which
+    # always names the three kinds), while not forcing one exact label the
+    # guidance does not mandate verbatim.
+    legend_ok = ("provenance" in header or "legend" in header) and all(
         t in header for t in ("documented", "maintainer", "inferred")
     )
     yield _f(
