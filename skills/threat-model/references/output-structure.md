@@ -344,7 +344,7 @@ dependency, a shipped-but-unsupported component promoted to core). Also: a
 report that cannot be cleanly routed to a §1.17 disposition is itself a trigger —
 revise the model, don't make an ad-hoc call.
 
-## `1.17` Triage dispositions
+## 1.17 Triage dispositions
 
 The **closed set** of outcomes, each citing the licensing section:
 
