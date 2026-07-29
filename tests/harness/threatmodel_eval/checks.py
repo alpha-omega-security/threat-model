@@ -217,8 +217,13 @@ def check_coverage(model: Model) -> Iterable[Finding]:
 # --------------------------------------------------------------------------
 def check_triage(model: Model) -> Iterable[Finding]:
     header = model.header.lower()
-    qs_ok = ("quick-start" in header and "§1.17" in model.header
-             and "contract dimension" in header and "precedence" in header)
+    # Treat hyphens as spaces so "contract-dimension" / "quick-start" satisfy the
+    # canonical "contract dimension" / "quick start" wording either way. The term
+    # is hyphenated in most of the skills, so agents naturally hyphenate it in the
+    # quick-start prose and the literal-substring test would otherwise reject it.
+    header_flat = header.replace("-", " ")
+    qs_ok = ("quick start" in header_flat and "§1.17" in model.header
+             and "contract dimension" in header_flat and "precedence" in header_flat)
     yield _f(
         "G3.triager-quickstart", "G3-triage", "error", qs_ok,
         "header contains a triager quick-start routing to §1.17" if qs_ok
