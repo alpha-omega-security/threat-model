@@ -107,10 +107,12 @@ documented evidence only when the project publicly identifies it as normative.
   low-blast-radius closes provisionally (see §1.17). The security-critical floor
   holds under both policies.
 - **Provenance legend** — the one-line key for the four tags above.
-- **Glossary pointer** — one line linking the plain-language
-  [glossary](glossary.md) (or an inline copy) so a non-expert reader can decode
+- **Glossary pointer** — inline a short plain-language glossary (or copy
+  [glossary.md](glossary.md) alongside the model and link that copy) so a
+  non-expert reader can decode
   dispositions, sinks, disclaimed properties, and provenance without prior
-  security-modeling background.
+  security-modeling background. Do not link the skills-repo glossary path from
+  the published model — it will not resolve in the target repo.
 - **Draft confidence** — a count of *(documented)* / *(maintainer)* /
   *(inferred)* claims (e.g., "29 documented / 0 maintainer / 30 inferred"). When
   the model uses *(assumption)* tags, append "/ N assumption".
@@ -342,7 +344,7 @@ dependency, a shipped-but-unsupported component promoted to core). Also: a
 report that cannot be cleanly routed to a §1.17 disposition is itself a trigger —
 revise the model, don't make an ad-hoc call.
 
-## 1.17 Triage dispositions
+## `1.17` Triage dispositions
 
 The **closed set** of outcomes, each citing the licensing section:
 

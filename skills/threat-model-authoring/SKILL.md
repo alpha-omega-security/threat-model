@@ -82,9 +82,13 @@ The deliverable deliberately mixes **both kinds of content in one document**:
 
 - **§1.1** — version binding, reporting cross-reference, status (incl.
   `unratified draft` when §3.7 applies), triage-policy declaration (`strict`
-  default / `relaxed`), provenance legend, glossary pointer (link the
-  plain-language [glossary](../threat-model/references/glossary.md) so non-expert
-  readers can decode the jargon), draft-confidence count, backtest note, sibling
+  default / `relaxed`), provenance legend, glossary pointer (inline a short
+  plain-language glossary in the model — or copy `glossary.md` alongside
+  `threat-model.md` in the target repo and link *that* copy — so non-expert
+  readers can decode the jargon; use the reference
+  [glossary](../threat-model/references/glossary.md) as the source to inline or
+  copy from, and never link that skills-repo path from the published model — it
+  will not resolve in the target repo), draft-confidence count, backtest note, sibling
   models, **generation metadata** (producing model/agent + version, effort level,
   and the plugins/skills actually used, or "human-authored"), and the boxed
   **triager quick-start** whose steps reference sections that actually exist.
