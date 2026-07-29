@@ -44,11 +44,14 @@ Python 3.8+ and ``git``, plus -- depending on ``--agent`` -- one of:
   - the GitHub Copilot CLI (``copilot``, install with
     ``npm install -g @github/copilot``), authenticated by running ``copilot``
     once interactively; ``--allow-all-tools`` grants it the same file/shell
-    access you have in the clone directory.
+    access you have in the clone directory, and the harness validator (and the
+    finding corpus, when supplied) are additionally trusted via ``--add-dir`` so
+    the agent can run the validator itself.
   - the Claude CLI (``claude``, install with
     ``npm install -g @anthropic-ai/claude-code``), authenticated by running
     ``claude`` once interactively; ``--dangerously-skip-permissions`` grants it
-    the same file/shell access you have in the clone directory.
+    the same file/shell access you have in the clone directory, with the same
+    validator/corpus directories trusted via ``--add-dir``.
 
 Only run against repositories you trust.
 """
@@ -196,6 +199,25 @@ def find_in_scope(work_dir: Path, preferred_relative: Path, filename: str) -> Pa
         if found.is_file():
             return found
     return preferred
+
+
+def _agent_trust_dirs(validator_path: Optional[Path], corpus: Optional[Path]) -> List[str]:
+    """Deduped directories the agent must reach outside its launch directory.
+
+    The agent CLIs sandbox file/shell tools to the launch directory (the clone)
+    plus an explicit allow list. ``--allow-all-tools`` /
+    ``--dangerously-skip-permissions`` grant tool categories but not out-of-tree
+    paths, so these are passed via ``--add-dir`` to let the agent run the
+    validator itself and read the corpus. validate_model.py imports
+    ``threatmodel_eval`` from its own directory, so the validator's parent covers
+    both the script and its package.
+    """
+    dirs: List[Path] = []
+    if validator_path is not None and validator_path.exists():
+        dirs.append(validator_path.parent)
+    if corpus is not None:
+        dirs.append(corpus.parent)
+    return list(dict.fromkeys(str(p) for p in dirs))
 
 
 # ---------------------------------------------------------------------------
@@ -488,14 +510,27 @@ def run(args: argparse.Namespace, console: Console) -> int:
     if log_file.exists():
         log_file.unlink()
 
+    # Directories the agent must reach outside its launch directory (the clone):
+    # the harness validator plus its ``threatmodel_eval`` package, and the finding
+    # corpus when one is supplied. Both agent CLIs confine file/shell tools to the
+    # launch directory plus an allow list; ``--allow-all-tools`` /
+    # ``--dangerously-skip-permissions`` grant tool *categories* but do NOT waive
+    # that path check, so a self-verify ``python validate_model.py ...`` is denied
+    # without ``--add-dir`` (see _agent_trust_dirs).
+    add_dir_args: List[str] = []
+    for trusted in _agent_trust_dirs(validator_path, corpus):
+        add_dir_args += ["--add-dir", trusted]
+    if add_dir_args:
+        console.step("Trusting agent path(s): " + ", ".join(add_dir_args[1::2]))
+
     def invoke_agent(prompt_text: str) -> int:
         if args.agent == "claude":
-            cli_args = ["-p", prompt_text, "--dangerously-skip-permissions"]
+            cli_args = ["-p", prompt_text, "--dangerously-skip-permissions", *add_dir_args]
             if args.model:
                 cli_args += ["--model", args.model]
             cli_args += list(args.extra_claude_args)
         else:
-            cli_args = ["-p", prompt_text, "--allow-all-tools", "--deny-tool", "shell(git push)", "--no-color"]
+            cli_args = ["-p", prompt_text, "--allow-all-tools", "--deny-tool", "shell(git push)", "--no-color", *add_dir_args]
             if args.model:
                 cli_args += ["--model", args.model]
             cli_args += list(args.extra_copilot_args)
@@ -658,12 +693,15 @@ def _print_dry_run(
     console.info()
 
     model_suffix = f" --model {args.model}" if args.model else ""
+    add_dir_suffix = "".join(
+        f" --add-dir '{d}'" for d in _agent_trust_dirs(validator_path, corpus)
+    )
     if args.agent == "claude":
         console.info("claude invocation:")
-        console.info(f"  {args.claude_path} -p <prompt> --dangerously-skip-permissions{model_suffix}")
+        console.info(f"  {args.claude_path} -p <prompt> --dangerously-skip-permissions{add_dir_suffix}{model_suffix}")
     else:
         console.info("copilot invocation:")
-        console.info(f"  {args.copilot_path} -p <prompt> --allow-all-tools --deny-tool 'shell(git push)' --no-color{model_suffix}")
+        console.info(f"  {args.copilot_path} -p <prompt> --allow-all-tools --deny-tool 'shell(git push)' --no-color{add_dir_suffix}{model_suffix}")
     console.info()
     console.info("----- prompt -----")
     console.info(prompt)
