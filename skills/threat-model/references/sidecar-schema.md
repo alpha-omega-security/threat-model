@@ -26,8 +26,8 @@ model_status: unratified-draft # draft | unratified-draft | under-review | accep
 triage_policy: strict          # strict (default) | relaxed
 confidence: {documented: 29, maintainer: 24, inferred: 6, assumption: 0}
 
-generation:                   # from §1.1 generation metadata; omit for a fully human-authored model
-  model: "Claude Opus 4.8"    # producing model/agent, name + version ("human-authored" if none)
+generation:                   # from §1.1 generation metadata; omit entirely for a fully human-authored model
+  model: "Claude Opus 4.8"    # producing model/agent, name + version
   effort: high                # reasoning/effort level: low | medium | high | <provider label>
   plugins:                    # skills / plugins / MCP servers that drove production; only those used
     - threat-model
