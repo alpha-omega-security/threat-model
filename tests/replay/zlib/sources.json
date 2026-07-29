@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/madler/zlib",
+  "controls_per_episode": 5,
+  "vulns": [
+    {"id": "CVE-2022-37434", "report_url": "https://github.com/madler/zlib/issues/605", "ground_truth": "VALID"},
+    {"id": "CVE-2018-25032", "ground_truth": "VALID"},
+    {"id": "CVE-2016-9840", "ground_truth": "VALID"},
+    {"id": "CVE-2005-2096", "ground_truth": "VALID"}
+  ]
+}

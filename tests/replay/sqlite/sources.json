@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/sqlite/sqlite",
+  "controls_per_episode": 5,
+  "note": "sqlite's GitHub is a read-only mirror; issues live in Fossil/the forum, so same-month control discovery via the GitHub issues API will return nothing. Provide controls explicitly or point the fetcher at an alternate tracker before scoring cry-wolf for sqlite.",
+  "vulns": [
+    {"id": "CVE-2019-8457", "ground_truth": "VALID"},
+    {"id": "CVE-2020-13631", "ground_truth": "VALID"},
+    {"id": "CVE-2022-35737", "ground_truth": "VALID"}
+  ]
+}
