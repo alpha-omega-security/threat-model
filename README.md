@@ -1,6 +1,6 @@
-# threat-model
+# Threat Model Generator
 
-A set of [agent skills](https://agentskills.io/) for producing threat models for open-source projects — an orchestrator plus independently invocable specialists.
+A set of [agent skills](https://agentskills.io/) for producing threat models for open-source projects, including an orchestrator and independently invocable specialists.
 
 The output is a document describing the implicit security contract between a project and its downstream users: what the project assumes about its environment and inputs, which security properties it claims, which it explicitly disclaims, and which threats are left to the integrator. It is written to serve two readers at once: the downstream integrator deciding what they are now responsible for, and the maintainer or triager deciding whether an inbound vulnerability report is valid, out of model, or by design.
 
@@ -54,6 +54,21 @@ The agent re-runs the interview/authoring loop: it promotes each answered claim 
 ### When to re-run
 
 Re-run a threat-model update when something changes what the model describes. Section `§1.16 Conditions that would change this model` lists the triggers — a new public API or input format, a new network surface or deployment context, a changed configuration default, a new or updated dependency, a shipped-but-unsupported component promoted to core, or any inbound report that cannot be cleanly routed to a disposition. Also re-bind the model to each release, since it is versioned alongside the project (a report against version *N* is triaged against the model as it stood at *N*).
+
+### Generate non-interactively (`new_threat_model.py`)
+
+For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting `docs/threat-model.md` + `threat-model.yaml` into the output directory.
+
+```pwsh
+# needs `git` plus an authenticated `copilot` (or `claude`) CLI on PATH
+python new_threat_model.py --repo https://github.com/madler/zlib --out ./out/zlib
+
+# choose the agent, scope to a monorepo subdirectory, and triage a finding corpus
+python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
+    --subdir src --corpus findings.jsonl --out ./out/repo
+```
+
+It is pure-stdlib Python 3.8+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
 
 
 ## What you get
