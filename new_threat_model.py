@@ -345,7 +345,7 @@ def parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     parser.add_argument("--corpus", default="", help="JSON Lines finding corpus to triage into predictions.jsonl.")
     parser.add_argument(
         "--skill-dir",
-        default=str(SCRIPT_DIR / ".." / ".github" / "skills"),
+        default=str(SCRIPT_DIR / "skills"),
         help="Directory holding the threat-model skill set to install into the clone.",
     )
     parser.add_argument("--work-root", default="", help="Root for clones (default: a temp subfolder).")
@@ -360,7 +360,7 @@ def parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     parser.add_argument("--no-repair", action="store_true", help="Skip the validate/repair loop entirely.")
     parser.add_argument(
         "--validator-path",
-        default=str(SCRIPT_DIR / ".." / "tests" / "harness" / "validate_model.py"),
+        default=str(SCRIPT_DIR / "tests" / "harness" / "validate_model.py"),
         help="Path to the deterministic model validator.",
     )
     parser.add_argument("--python-path", default=sys.executable or "python", help="Python interpreter used to run the validator.")
