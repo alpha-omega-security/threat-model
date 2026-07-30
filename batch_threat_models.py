@@ -693,7 +693,24 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _make_output_encoding_safe() -> None:
+    """Prevent console writes from crashing on child agents' Unicode output.
+
+    The agent CLIs emit characters like ``\u25cf`` and box-drawing glyphs that a
+    legacy Windows code page (e.g. cp1252) cannot encode. Switch stdout/stderr
+    to ``errors='replace'`` so they degrade to ``?`` instead of aborting.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    _make_output_encoding_safe()
     try:
         return run(parse_args(argv))
     except BatchError as exc:

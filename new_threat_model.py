@@ -738,7 +738,25 @@ def _print_dry_run(
     console.info(prompt)
 
 
+def _make_output_encoding_safe() -> None:
+    """Ensure console writes never crash on the agents' Unicode output.
+
+    The agent CLIs emit characters like ``\u25cf`` and box-drawing glyphs. On a
+    Windows console using a legacy code page (e.g. cp1252) writing those raises
+    ``UnicodeEncodeError``. Switch stdout/stderr to ``errors='replace'`` so
+    unencodable characters degrade to ``?`` instead of aborting the run.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    _make_output_encoding_safe()
     args = parse_args(argv)
     console = Console()
     try:
