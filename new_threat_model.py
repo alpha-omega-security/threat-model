@@ -62,6 +62,7 @@ import argparse
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -408,10 +409,24 @@ def parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 # Clone
 # ---------------------------------------------------------------------------
+def _force_rmtree(path: Path) -> None:
+    """Remove a directory tree, clearing the read-only bit that Windows sets on
+    packed git objects (which makes a plain ``rmtree(ignore_errors=True)`` fail
+    silently and leave a non-empty directory behind)."""
+    def _on_error(func, target, _exc):
+        try:
+            os.chmod(target, stat.S_IWRITE)
+            func(target)
+        except OSError:
+            pass
+
+    shutil.rmtree(path, onerror=_on_error)
+
+
 def clone_repository(console: Console, repo: str, ref: str, clone_dir: Path) -> None:
     if clone_dir.exists():
         console.step(f"Removing stale clone at {clone_dir}")
-        shutil.rmtree(clone_dir, ignore_errors=True)
+        _force_rmtree(clone_dir)
     clone_dir.parent.mkdir(parents=True, exist_ok=True)
 
     console.step(f"Cloning {repo} -> {clone_dir}")
@@ -420,7 +435,7 @@ def clone_repository(console: Console, repo: str, ref: str, clone_dir: Path) -> 
         if code != 0:
             console.warn(f"shallow clone of ref '{ref}' failed; retrying with a full clone + checkout")
             if clone_dir.exists():
-                shutil.rmtree(clone_dir, ignore_errors=True)
+                _force_rmtree(clone_dir)
             if stream_command(["git", "clone", repo, str(clone_dir)]) != 0:
                 raise ScriptError(f"git clone failed for {repo}")
             if stream_command(["git", "-C", str(clone_dir), "checkout", ref]) != 0:
@@ -566,7 +581,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
     # --- Cleanup and summary ---
     if not args.keep_clone:
         console.step(f"Removing clone {clone_dir}")
-        shutil.rmtree(clone_dir, ignore_errors=True)
+        _force_rmtree(clone_dir)
     else:
         console.step(f"Keeping clone at {clone_dir}")
 
