@@ -238,6 +238,17 @@ def build_subdir_note(subdir: str) -> str:
     )
 
 
+def build_effort_note(effort: str) -> str:
+    if not effort:
+        return ""
+    return (
+        "\n\n"
+        f"The reasoning/effort level for this run is: {effort}. Calibrate the depth of\n"
+        "your analysis to that level, and record it verbatim as the effort level in the\n"
+        "section 1.1 generation metadata and in the sidecar's generation.effort field."
+    )
+
+
 def build_corpus_instruction(corpus: Optional[Path]) -> str:
     if not corpus:
         return ""
@@ -308,19 +319,21 @@ adversary-not-in-scope, unsupported-component, non-default-build, and a
 non-security-critical property-disclaimed) as a provisional, challengeable
 close. Under BOTH policies an (assumption) never licenses KNOWN-NON-FINDING, a
 security-critical property-disclaimed, or dependency-contract, and (inferred)
-never closes.{corpus_instruction}
+never closes.{corpus_instruction}{effort_note}
 
 When you are done, briefly list the files you created."""
 
 
 def build_prompt(
-    project: str, subdir: str, triage_policy: str, corpus: Optional[Path]
+    project: str, subdir: str, triage_policy: str, corpus: Optional[Path],
+    effort: str = "",
 ) -> str:
     return PROMPT_TEMPLATE.format(
         project=project,
         subdir_note=build_subdir_note(subdir),
         triage_policy=triage_policy,
         corpus_instruction=build_corpus_instruction(corpus),
+        effort_note=build_effort_note(effort),
     )
 
 
@@ -372,6 +385,7 @@ def parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     )
     parser.add_argument("--work-root", default="", help="Root for clones (default: a temp subfolder).")
     parser.add_argument("--model", default="", help="Model name to pass to the agent CLI (--model).")
+    parser.add_argument("--effort", default="", help="Reasoning/effort level to record and calibrate to (e.g. low, medium, high).")
     parser.add_argument("--triage-policy", choices=["strict", "relaxed"], default="strict", help="Triage policy declared in the model.")
     parser.add_argument("--agent", choices=["copilot", "claude"], default="copilot", help="Which coding-agent CLI drives the run.")
     parser.add_argument("--copilot-path", default="copilot", help="Path to the Copilot CLI executable.")
@@ -473,7 +487,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
 
     python_available = shutil.which(args.python_path) is not None or Path(args.python_path).exists()
 
-    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus)
+    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus, args.effort)
 
     # --- Dry run: show the plan and exit ---
     if args.dry_run:
@@ -682,6 +696,8 @@ def _print_dry_run(
     console.info(f"Skill dir  : {skill_dir}")
     console.info(f"Corpus     : {corpus if corpus else '(none — predictions skipped)'}")
     console.info(f"Output dir : {out_dir}")
+    console.info(f"Agent/model: {args.agent}" + (f" / {args.model}" if args.model else " / (default)"))
+    console.info(f"Effort     : {args.effort or '(unset)'}")
 
     if args.no_repair:
         repair_plan = "disabled (--no-repair)"
