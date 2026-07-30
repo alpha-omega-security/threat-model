@@ -309,6 +309,7 @@ def run_job(
         "--project", target.name,
         "--agent", config.agent,
         "--triage-policy", config.triage_policy,
+        "--work-root", str(jdir / "clone"),
     ]
     if target.ref:
         cmd += ["--ref", target.ref]
