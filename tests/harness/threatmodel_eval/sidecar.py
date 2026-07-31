@@ -189,11 +189,12 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
              else "confidence must be {documented:int, maintainer:int, inferred:int} "
                   "(optional assumption:int)")
     if conf_ok and model is not None and model.stated_confidence():
-        d, m, i = model.stated_confidence()
-        match = (conf["documented"], conf["maintainer"], conf["inferred"]) == (d, m, i)
+        d, m, i, a = model.stated_confidence()
+        match = ((conf["documented"], conf["maintainer"], conf["inferred"],
+                  conf.get("assumption", 0)) == (d, m, i, a))
         yield _f("SC.confidence-matches-header", match,
                  "sidecar confidence matches the prose header" if match
-                 else f"sidecar confidence {conf} != header ({d}/{m}/{i})")
+                 else f"sidecar confidence {conf} != header ({d}/{m}/{i}/{a})")
     accepted_safe = not (status == "accepted" and (
         not conf_ok or conf["inferred"] > 0 or _contains_inferred_provenance(sidecar)
     ))

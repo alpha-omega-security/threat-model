@@ -72,13 +72,14 @@ def check_provenance(model: Model) -> Iterable[Finding]:
     )
     if stated is not None:
         actual = model.tag_counts()
-        act = (actual["documented"], actual["maintainer"], actual["inferred"])
+        act = (actual["documented"], actual["maintainer"], actual["inferred"],
+               actual["assumption"])
         match = stated == act
         yield _f(
             "G1.confidence-matches", "G1-provenance", "error", match,
             "header confidence matches body tag counts" if match
             else f"header says {stated} but body has {act} "
-                 "(documented/maintainer/inferred)",
+                 "(documented/maintainer/inferred/assumption)",
             "§1.1",
         )
 
@@ -87,7 +88,8 @@ def check_provenance(model: Model) -> Iterable[Finding]:
         f"{kind}:{detail or '<missing>'}" for kind, detail in details
         if (kind == "documented" and not detail)
         or (kind == "maintainer" and not re.fullmatch(r"\d{4}-\d{2}", detail))
-        or (kind == "inferred" and not re.fullmatch(r"Q\d+", detail, re.IGNORECASE))
+        or (kind in ("inferred", "assumption")
+            and not re.fullmatch(r"Q\d+", detail, re.IGNORECASE))
     ]
     yield _f(
         "G1.provenance-details", "G1-provenance", "error", not bad_details,
@@ -95,19 +97,23 @@ def check_provenance(model: Model) -> Iterable[Finding]:
         if not bad_details else f"provenance tags with missing/invalid detail: {bad_details}",
     )
 
-    inferred = model.tag_counts()["inferred"]
-    if inferred > 0:
+    counts = model.tag_counts()
+    # Both (inferred, QN) and (assumption, QN) must resolve to a §1.18
+    # ratification item (see output-structure.md, "Mapping rule").
+    unratified = counts["inferred"] + counts["assumption"]
+    if unratified > 0:
         s18 = model.section("18")
         question_ids = model.open_question_ids()
-        refs = [detail.upper() for kind, detail in details if kind == "inferred" and detail]
-        mapped = len(refs) == inferred and set(refs) <= question_ids
+        refs = [detail.upper() for kind, detail in details
+                if kind in ("inferred", "assumption") and detail]
+        mapped = len(refs) == unratified and set(refs) <= question_ids
         yield _f(
             "G1.inferred-has-questions", "G1-provenance", "error",
             s18 is not None and mapped,
-            f"{inferred} inferred claim(s) map to §1.18 Q-IDs"
+            f"{unratified} inferred/assumption claim(s) map to §1.18 Q-IDs"
             if (s18 and mapped) else
-            f"inferred claim refs {sorted(set(refs))} do not resolve within "
-            f"§1.18 IDs {sorted(question_ids)}",
+            f"inferred/assumption claim refs {sorted(set(refs))} do not resolve "
+            f"within §1.18 IDs {sorted(question_ids)}",
             "§1.18",
         )
 

@@ -20,16 +20,21 @@ import yaml
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*$")
 _SECTION_NO = re.compile(r"^1\.(\d+[a-z]?)\b")
 # A provenance tag: (documented, source) / (maintainer, 2025-03) /
-# (inferred, Q7). Detail is mandatory for body claims and validated separately.
+# (inferred, Q7) / (assumption, Q7). Detail is mandatory for body claims and
+# validated separately.
 _TAG = re.compile(
-    r"\((documented|maintainer|inferred)(?:,\s*([^)]*?))?\)", re.IGNORECASE
+    r"\((documented|maintainer|inferred|assumption)(?:,\s*([^)]*?))?\)",
+    re.IGNORECASE,
 )
 # Hedge tags the skill explicitly forbids.
 _HEDGE = re.compile(
     r"\((implicit|documented in purpose|generally known)\)", re.IGNORECASE
 )
+# The §1.1 draft-confidence tally. The fourth "/ N assumption" term is appended
+# only when the model uses (assumption) tags (see output-structure.md §1.1).
 _CONFIDENCE = re.compile(
-    r"(\d+)\s*documented\s*/\s*(\d+)\s*maintainer\s*/\s*(\d+)\s*inferred",
+    r"(\d+)\s*documented\s*/\s*(\d+)\s*maintainer\s*/\s*(\d+)\s*inferred"
+    r"(?:\s*/\s*(\d+)\s*assumption)?",
     re.IGNORECASE,
 )
 
@@ -110,7 +115,8 @@ class Model:
         text = self.text
         if exclude_header and self.section("1"):
             text = text.replace(self.section("1").body, "")
-        counts = {"documented": 0, "maintainer": 0, "inferred": 0}
+        counts = {"documented": 0, "maintainer": 0, "inferred": 0,
+                  "assumption": 0}
         for m in _TAG.finditer(text):
             counts[m.group(1).lower()] += 1
         return counts
@@ -125,11 +131,17 @@ class Model:
             for match in _TAG.finditer(text)
         ]
 
-    def stated_confidence(self) -> tuple[int, int, int] | None:
+    def stated_confidence(self) -> tuple[int, int, int, int] | None:
+        """Return ``(documented, maintainer, inferred, assumption)`` from §1.1.
+
+        The trailing "/ N assumption" term is optional; it reads as 0 when the
+        model states no assumption tally.
+        """
         m = _CONFIDENCE.search(self.header)
         if not m:
             return None
-        return int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                int(m.group(4) or 0))
 
     def stated_status(self) -> str | None:
         """Normalize the §1.1 status line to the sidecar enum."""
