@@ -82,7 +82,10 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from new_threat_model import CLAUDE_STREAM_ARGS, format_claude_event  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_GENERATOR = SCRIPT_DIR / "new_threat_model.py"
@@ -229,8 +232,18 @@ def _command_for(exe: str, cli_args: Sequence[str]) -> List[str]:
     return [exe, *cli_args]
 
 
-def run_subprocess(cmd: Sequence[str], cwd: Optional[Path], log_path: Path, echo: bool) -> int:
-    """Run ``cmd``, teeing output to ``log_path`` and (optionally) the console."""
+def run_subprocess(
+    cmd: Sequence[str],
+    cwd: Optional[Path],
+    log_path: Path,
+    echo: bool,
+    transform: Optional[Callable[[str], Optional[str]]] = None,
+) -> int:
+    """Run ``cmd``, teeing output to ``log_path`` and (optionally) the console.
+
+    ``transform`` rewrites each line before it is logged and echoed; returning
+    ``None`` drops it.
+    """
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "w", encoding="utf-8") as log_fh:
         proc = subprocess.Popen(
@@ -245,6 +258,11 @@ def run_subprocess(cmd: Sequence[str], cwd: Optional[Path], log_path: Path, echo
         )
         assert proc.stdout is not None
         for line in proc.stdout:
+            if transform is not None:
+                rendered = transform(line)
+                if rendered is None:
+                    continue
+                line = rendered
             log_fh.write(line)
             log_fh.flush()
             if echo:
@@ -426,17 +444,24 @@ def run_comparison(
         return False
 
     prompt = build_compare_prompt(target, configs, records)
+    transform = None
     if compare_agent == "claude":
-        cli = ["-p", prompt, "--dangerously-skip-permissions"]
+        # Without the JSON event stream Claude buffers everything to the end,
+        # so comparison.log stays empty for the whole run.
+        cli = ["-p", prompt, "--dangerously-skip-permissions", *CLAUDE_STREAM_ARGS]
         if compare_model:
             cli += ["--model", compare_model]
+        transform = format_claude_event
     else:
         cli = ["-p", prompt, "--allow-all-tools", "--deny-tool", "shell(git push)", "--no-color"]
         if compare_model:
             cli += ["--model", compare_model]
 
     step(f"[cmp ] {target.slug} — comparing {len(produced)} models with {compare_agent} {compare_model or 'default'}")
-    code = run_subprocess(_command_for(exe, cli), cwd=tdir, log_path=tdir / "comparison.log", echo=args.jobs == 1)
+    code = run_subprocess(
+        _command_for(exe, cli), cwd=tdir, log_path=tdir / "comparison.log",
+        echo=args.jobs == 1, transform=transform,
+    )
     if code != 0 or not comparison.exists():
         warn(f"[cmp ] {target.slug} — comparison did not produce comparison.md (exit {code})")
         return False

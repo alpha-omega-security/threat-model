@@ -5,8 +5,9 @@ This is the generation adapter behind the harness's ``subprocess`` runner
 (``tests/harness/run_eval.py``). It:
 
   1. clones the target repo (shallow, optional ref) into a work directory;
-  2. copies the threat-model skill set into the clone's ``.github/skills`` so the
-     coding agent CLI discovers it (repository-level skills);
+  2. copies the threat-model skill set into the clone's repository-level skill
+     directory so the coding agent CLI discovers it -- ``.github/skills`` for
+     Copilot, ``.claude/skills`` for Claude (each CLI reads only its own path);
   3. invokes either the GitHub Copilot CLI (``copilot -p <prompt>
      --allow-all-tools``) or the Claude CLI (``claude -p <prompt>
      --dangerously-skip-permissions``) to drive the ``threat-model``
@@ -51,7 +52,10 @@ Python 3.8+ and ``git``, plus -- depending on ``--agent`` -- one of:
     ``npm install -g @anthropic-ai/claude-code``), authenticated by running
     ``claude`` once interactively; ``--dangerously-skip-permissions`` grants it
     the same file/shell access you have in the clone directory, with the same
-    validator/corpus directories trusted via ``--add-dir``.
+    validator/corpus directories trusted via ``--add-dir``. The run is driven
+    through ``--output-format stream-json --verbose`` because Claude's default
+    text mode emits nothing until the whole run ends, which makes a long
+    generation look hung and leaves the log empty until the last moment.
 
 Only run against repositories you trust.
 """
@@ -59,6 +63,7 @@ Only run against repositories you trust.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -67,7 +72,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -118,12 +123,17 @@ def stream_command(
     cmd: Sequence[str],
     cwd: Optional[Path] = None,
     log_path: Optional[Path] = None,
+    transform: Optional[Callable[[str], Optional[str]]] = None,
 ) -> int:
     """Run ``cmd``, teeing merged stdout/stderr to the console and an optional log.
 
     Returns the process exit code. Child output is decoded as UTF-8 so the
     agent CLIs' check marks, box drawing, and em dashes render correctly rather
     than as mojibake.
+
+    ``transform`` rewrites each line before it is echoed and logged; returning
+    ``None`` drops the line. It is used to render Claude's JSON event stream as
+    readable progress (see ``format_claude_event``).
     """
     log_fh = open(log_path, "a", encoding="utf-8") if log_path else None
     try:
@@ -139,6 +149,11 @@ def stream_command(
         )
         assert proc.stdout is not None
         for line in proc.stdout:
+            if transform is not None:
+                rendered = transform(line)
+                if rendered is None:
+                    continue
+                line = rendered
             sys.stdout.write(line)
             sys.stdout.flush()
             if log_fh:
@@ -148,6 +163,92 @@ def stream_command(
     finally:
         if log_fh:
             log_fh.close()
+
+
+# Claude prints nothing until a run ends unless it is asked for the JSON event
+# stream; ``--verbose`` is what makes that stream carry per-turn events rather
+# than just the final result.
+CLAUDE_STREAM_ARGS = ["--output-format", "stream-json", "--verbose"]
+
+# Tool inputs worth showing inline, in the order we prefer to display them.
+_TOOL_INPUT_KEYS = ("skill", "command", "file_path", "path", "pattern", "description", "prompt")
+
+
+def _tool_call_summary(block: dict) -> str:
+    """One-line ``ToolName(most informative argument)`` for a tool_use block."""
+    name = block.get("name") or "tool"
+    args = block.get("input") or {}
+    detail = ""
+    if isinstance(args, dict):
+        for key in _TOOL_INPUT_KEYS:
+            value = args.get(key)
+            if isinstance(value, str) and value.strip():
+                detail = " ".join(value.split())
+                break
+    if len(detail) > 120:
+        detail = detail[:117] + "..."
+    return f"{name}({detail})" if detail else name
+
+
+def format_claude_event(line: str) -> Optional[str]:
+    """Render one ``--output-format stream-json`` event as a readable line.
+
+    Claude's default ``--output-format text`` prints nothing at all until the
+    whole run finishes, so a multi-minute generation looks hung and leaves an
+    empty log. The JSON stream arrives incrementally, so this translates it back
+    into copilot-style progress. Returns ``None`` for events that add only noise
+    (token tickers, rate-limit pings), and passes non-JSON lines through
+    untouched so CLI errors still surface.
+    """
+    stripped = line.strip()
+    if not stripped:
+        return None
+    if not stripped.startswith("{"):
+        return line
+    try:
+        event = json.loads(stripped)
+    except (ValueError, TypeError):
+        return line
+    if not isinstance(event, dict):
+        return line
+
+    kind = event.get("type")
+
+    if kind == "system" and event.get("subtype") == "init":
+        model = event.get("model") or "default model"
+        return f"[claude] session started — model {model}\n"
+
+    if kind == "assistant":
+        out: List[str] = []
+        for block in (event.get("message") or {}).get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text":
+                text = (block.get("text") or "").strip()
+                if text:
+                    out.append(text + "\n")
+            elif block.get("type") == "tool_use":
+                out.append(f"  -> {_tool_call_summary(block)}\n")
+        return "".join(out) or None
+
+    if kind == "user":
+        for block in (event.get("message") or {}).get("content") or []:
+            if isinstance(block, dict) and block.get("is_error"):
+                return "  <- tool error\n"
+        return None
+
+    if kind == "result":
+        seconds = (event.get("duration_ms") or 0) / 1000.0
+        failed = bool(event.get("is_error"))
+        status = "error" if failed else event.get("subtype") or "done"
+        head = f"[claude] {status} — {event.get('num_turns', '?')} turns, {seconds:.0f}s\n"
+        # The final text already streamed as assistant events; repeat it only on
+        # failure, where it carries the reason the run stopped.
+        final = (event.get("result") or "").strip() if failed else ""
+        return head + (final + "\n" if final else "")
+
+    # thinking_tokens tickers, rate_limit_event pings, and anything unrecognized.
+    return None
 
 
 def capture_command(cmd: Sequence[str]) -> Tuple[int, str]:
@@ -200,6 +301,18 @@ def find_in_scope(work_dir: Path, preferred_relative: Path, filename: str) -> Pa
         if found.is_file():
             return found
     return preferred
+
+
+def skill_install_relpath(agent: str) -> Path:
+    """Where ``agent``'s CLI looks for repository-level skills.
+
+    The two CLIs do NOT share a discovery path: Copilot reads
+    ``.github/skills``, Claude Code reads ``.claude/skills`` and ignores
+    ``.github/skills`` entirely. Installing into the wrong one leaves every
+    ``skill(threat-model-*)`` call resolving to "not found", so the run
+    silently degrades into an unguided freeform answer.
+    """
+    return Path(".claude") / "skills" if agent == "claude" else Path(".github") / "skills"
 
 
 def _agent_trust_dirs(validator_path: Optional[Path], corpus: Optional[Path]) -> List[str]:
@@ -275,7 +388,7 @@ PROMPT_TEMPLATE = """You are generating a security threat model for the project 
 current directory ({project}).{subdir_note}
 
 Use the threat-model skill (the orchestrator) and its specialist skills, which
-are available in .github/skills of this repository. Follow the skill's procedure
+are available in {skill_path} of this repository. Follow the skill's procedure
 faithfully: a threat model is the implicit security contract between this project
 and its downstream users — assumptions, guarantees, disclaimed properties, and
 known misuses. It is NOT an audit, a pentest, a CVE list, or a bug hunt. Do not
@@ -327,7 +440,7 @@ When you are done, briefly list the files you created."""
 
 def build_prompt(
     project: str, subdir: str, triage_policy: str, corpus: Optional[Path],
-    effort: str = "",
+    effort: str = "", agent: str = "copilot",
 ) -> str:
     return PROMPT_TEMPLATE.format(
         project=project,
@@ -335,6 +448,7 @@ def build_prompt(
         triage_policy=triage_policy,
         corpus_instruction=build_corpus_instruction(corpus),
         effort_note=build_effort_note(effort),
+        skill_path=skill_install_relpath(agent).as_posix(),
     )
 
 
@@ -502,7 +616,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
 
     python_available = shutil.which(args.python_path) is not None or Path(args.python_path).exists()
 
-    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus, args.effort)
+    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus, args.effort, args.agent)
 
     # --- Dry run: show the plan and exit ---
     if args.dry_run:
@@ -526,11 +640,12 @@ def run(args: argparse.Namespace, console: Console) -> int:
         console.step(f"Scoping generation to subdirectory: {args.subdir}")
 
     # --- Install the skills so the agent CLI discovers them ---
-    # The agent CLI discovers repository skills from `.github/skills` relative to
-    # the directory it is launched in. When scoping to a monorepo subdirectory
-    # that directory is work_dir, not the repo root, so the skills must live
-    # there; otherwise every skill(threat-model-*) call resolves to "not found".
-    dest_skills = work_dir / ".github" / "skills"
+    # Each agent CLI discovers repository skills from its own directory relative
+    # to where it is launched (see skill_install_relpath). When scoping to a
+    # monorepo subdirectory that launch directory is work_dir, not the repo root,
+    # so the skills must live there; otherwise every skill(threat-model-*) call
+    # resolves to "not found".
+    dest_skills = work_dir / skill_install_relpath(args.agent)
     console.step(f"Installing threat-model skills into {dest_skills}")
     copy_into(skill_dir, dest_skills)
 
@@ -553,17 +668,21 @@ def run(args: argparse.Namespace, console: Console) -> int:
         console.step("Trusting agent path(s): " + ", ".join(add_dir_args[1::2]))
 
     def invoke_agent(prompt_text: str) -> int:
+        transform = None
         if args.agent == "claude":
-            cli_args = ["-p", prompt_text, "--dangerously-skip-permissions", *add_dir_args]
+            cli_args = ["-p", prompt_text, "--dangerously-skip-permissions", *CLAUDE_STREAM_ARGS, *add_dir_args]
             if args.model:
                 cli_args += ["--model", args.model]
             cli_args += list(args.extra_claude_args)
+            transform = format_claude_event
         else:
             cli_args = ["-p", prompt_text, "--allow-all-tools", "--deny-tool", "shell(git push)", "--no-color", *add_dir_args]
             if args.model:
                 cli_args += ["--model", args.model]
             cli_args += list(args.extra_copilot_args)
-        return stream_command(_command_for(agent_exe, cli_args), cwd=work_dir, log_path=log_file)
+        return stream_command(
+            _command_for(agent_exe, cli_args), cwd=work_dir, log_path=log_file, transform=transform
+        )
 
     console.step(f"Running {args.agent} CLI (log: {log_file})")
     agent_exit = invoke_agent(prompt)
@@ -709,6 +828,7 @@ def _print_dry_run(
     console.info(f"Clone dir  : {clone_dir}")
     console.info(f"Subdir     : {args.subdir or '(repo root)'}")
     console.info(f"Skill dir  : {skill_dir}")
+    console.info(f"Installs to: <clone>/{skill_install_relpath(args.agent).as_posix()}")
     console.info(f"Corpus     : {corpus if corpus else '(none — predictions skipped)'}")
     console.info(f"Output dir : {out_dir}")
     console.info(f"Agent/model: {args.agent}" + (f" / {args.model}" if args.model else " / (default)"))
@@ -729,7 +849,10 @@ def _print_dry_run(
     )
     if args.agent == "claude":
         console.info("claude invocation:")
-        console.info(f"  {args.claude_path} -p <prompt> --dangerously-skip-permissions{add_dir_suffix}{model_suffix}")
+        console.info(
+            f"  {args.claude_path} -p <prompt> --dangerously-skip-permissions "
+            f"{' '.join(CLAUDE_STREAM_ARGS)}{add_dir_suffix}{model_suffix}"
+        )
     else:
         console.info("copilot invocation:")
         console.info(f"  {args.copilot_path} -p <prompt> --allow-all-tools --deny-tool 'shell(git push)' --no-color{add_dir_suffix}{model_suffix}")
