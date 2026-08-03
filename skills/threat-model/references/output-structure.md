@@ -77,8 +77,23 @@ documented evidence only when the project publicly identifies it as normative.
 ## 1.1 Header
 
 - Project name, version/commit, date, author(s) of the threat model.
+- **Generation metadata** — when the model is produced with AI or automated
+  assistance, record the tooling so a reader can weigh the draft:
+  - **Model/agent** — the producing model or agent, name + version (e.g.
+    "Claude Opus 4.8"). Mark "human-authored" when no model was involved.
+  - **Effort level** — the reasoning/effort setting the run used (e.g. low /
+    medium / high, or the provider's own label), since it bears on depth and
+    confidence.
+  - **Plugins/skills** — the skills, plugins, and MCP servers that drove
+    production (the threat-model orchestrator and each specialist invoked, plus
+    any external tooling such as a binlog or repo-search server). List what was
+    actually used, not the full catalog.
 - **Version binding** — the model is versioned alongside the project. A report
   against version *N* is triaged against the model as it stood at *N*, not HEAD.
+  The modeled version is a **published, committed** ref (a release tag or merged
+  commit), never the author's working tree: uncommitted changes, unmerged
+  branches, and draft PRs are out of scope because a downstream reader cannot see
+  them.
 - **Reporting cross-reference** — one line: §1.11 (claimed-property) findings
   are reported per the project's disclosure channel; §1.3 / §1.12 findings are
   closed citing this document.
@@ -92,6 +107,12 @@ documented evidence only when the project publicly identifies it as normative.
   low-blast-radius closes provisionally (see §1.17). The security-critical floor
   holds under both policies.
 - **Provenance legend** — the one-line key for the four tags above.
+- **Glossary pointer** — inline a short plain-language glossary (or copy
+  [glossary.md](glossary.md) alongside the model and link that copy) so a
+  non-expert reader can decode
+  dispositions, sinks, disclaimed properties, and provenance without prior
+  security-modeling background. Do not link the skills-repo glossary path from
+  the published model — it will not resolve in the target repo.
 - **Draft confidence** — a count of *(documented)* / *(maintainer)* /
   *(inferred)* claims (e.g., "29 documented / 0 maintainer / 30 inferred"). When
   the model uses *(assumption)* tags, append "/ N assumption".
@@ -358,6 +379,40 @@ The **closed set** of outcomes, each citing the licensing section:
 Multiple failed preconditions do not by themselves create a `MODEL-GAP`; this
 order resolves them. Use `MODEL-GAP` when the model is silent or genuinely
 contradictory.
+
+**Optional triage-decision diagram.** For a non-expert triager, a Mermaid
+flowchart of the precedence above often reads faster than the numbered list.
+Include it when it helps that audience; omit it if it would only duplicate a
+short list. It must mirror the first-match order exactly — the diagram is a view
+of the precedence, never a second, divergent rule:
+
+```mermaid
+flowchart TD
+    A[Inbound finding] --> Q1{Exact §1.15<br/>known non-finding?}
+    Q1 -- yes --> D1[KNOWN-NON-FINDING]
+    Q1 -- no --> Q2{Lands in out-of-scope<br/>§1.3 component?}
+    Q2 -- yes --> D2[OUT-OF-MODEL:<br/>unsupported-component]
+    Q2 -- no --> Q3{Requires unsupported<br/>§1.6 configuration?}
+    Q3 -- yes --> D3[OUT-OF-MODEL:<br/>non-default-build]
+    Q3 -- no --> Q4{Conformant use of a<br/>dependency that broke<br/>its own §1.9 contract?}
+    Q4 -- yes --> D4[OUT-OF-MODEL:<br/>dependency-contract]
+    Q4 -- no --> Q5{Requires control of a<br/>§1.7 trusted input?}
+    Q5 -- yes --> D5[OUT-OF-MODEL:<br/>trusted-input]
+    Q5 -- no --> Q6{Requires an excluded<br/>§1.10 attacker capability?}
+    Q6 -- yes --> D6[OUT-OF-MODEL:<br/>adversary-not-in-scope]
+    Q6 -- no --> Q7{Concerns a §1.12<br/>disclaimed property?}
+    Q7 -- yes --> D7[BY-DESIGN:<br/>property-disclaimed]
+    Q7 -- no --> Q8{Violates a §1.11<br/>claimed property?}
+    Q8 -- yes --> D8[VALID]
+    Q8 -- no --> Q9{Easy-to-prevent<br/>§1.14 misuse?}
+    Q9 -- yes --> D9[VALID-HARDENING]
+    Q9 -- no --> D10[MODEL-GAP → trigger §1.16]
+```
+
+A `yes` into any closing box (`KNOWN-NON-FINDING`, `OUT-OF-MODEL: *`,
+`BY-DESIGN: *`) still obeys the closure constraint below: if the licensing claim
+is only *(inferred)* — or an *(assumption)* beyond what the triage policy allows —
+the finding **escalates** to the maintainer instead of closing.
 
 **Closure constraint — all statuses.** Any disposition that closes a report
 against the reporter (`OUT-OF-MODEL: *`, `BY-DESIGN: *`, `KNOWN-NON-FINDING`)

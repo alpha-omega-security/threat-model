@@ -82,9 +82,16 @@ The deliverable deliberately mixes **both kinds of content in one document**:
 
 - **§1.1** — version binding, reporting cross-reference, status (incl.
   `unratified draft` when §3.7 applies), triage-policy declaration (`strict`
-  default / `relaxed`), provenance legend, draft-confidence count, backtest note,
-  sibling models, and the boxed **triager quick-start** whose steps reference
-  sections that actually exist.
+  default / `relaxed`), provenance legend, glossary pointer (inline a short
+  plain-language glossary in the model — or copy `glossary.md` alongside
+  `threat-model.md` in the target repo and link *that* copy — so non-expert
+  readers can decode the jargon; use the reference
+  [glossary](../threat-model/references/glossary.md) as the source to inline or
+  copy from, and never link that skills-repo path from the published model — it
+  will not resolve in the target repo), draft-confidence count, backtest note, sibling
+  models, **generation metadata** (producing model/agent + version, effort level,
+  and the plugins/skills actually used, or "human-authored"), and the boxed
+  **triager quick-start** whose steps reference sections that actually exist.
 - **§1.7** — a *table*, not prose; mark any untabled remainder from the surface
   timebox. Include control kinds and the per-family contract-dimension matrix.
   Every matrix row is claimed, disclaimed, N/A with reason, or unresolved.
@@ -106,6 +113,9 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   callback/collaborator exceptions and partial mutation.
 - **§1.17** — the closed disposition set, each citing its licensing section,
   including `dependency-contract`; add the all-status closure constraint.
+  Optionally add the Mermaid triage-decision flowchart when it aids a non-expert
+  triager — it must mirror the precedence order exactly, not introduce a second
+  rule.
 - **Closure safety** — an *(inferred)* claim never licenses a closing
   disposition, regardless of status. An *(assumption)* closes only what the
   declared triage policy permits (`strict`: never; `relaxed`: low-blast-radius

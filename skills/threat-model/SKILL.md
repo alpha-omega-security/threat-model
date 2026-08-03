@@ -149,4 +149,5 @@ the closed disposition set.
 - [question-bank.md](./references/question-bank.md) — reference questions, by wave.
 - [sidecar-schema.md](./references/sidecar-schema.md) — the `threat-model.yaml` schema.
 - [self-check.md](./references/self-check.md) — the four finalize gates.
+- [glossary.md](./references/glossary.md) — plain-language definitions of the jargon for non-expert readers.
 - [worked-example.md](./references/worked-example.md) — a zlib flavor sketch.

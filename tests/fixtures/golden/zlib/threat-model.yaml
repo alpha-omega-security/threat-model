@@ -1,0 +1,222 @@
+# threat-model.yaml — derived index; the prose threat model is canonical.
+schema: threat-model-sidecar/v2
+project: zlib
+prose_version: "docs/threat-model.md@sha256:d43a36b38e6a52fc1564419bae9e98fcf302217657cf2d80a6cf7a22c8ea237b"
+model_status: unratified-draft
+confidence: {documented: 59, maintainer: 0, inferred: 8}
+
+components:
+  - name: core-inflate
+    scope: in
+    reachability_precondition: "reachable from compressed input bytes"
+    provenance: {kind: documented, source: "zlib manual"}
+  - name: core-deflate
+    scope: in
+    reachability_precondition: "reachable from caller-supplied plaintext"
+    provenance: {kind: documented, source: "zlib manual"}
+  - name: gzip-file-api
+    scope: in
+    reachability_precondition: "reachable from gz* handle over caller-named file"
+    provenance: {kind: documented, source: "zlib manual"}
+  - name: contrib-samples
+    scope: out
+    reason: "third-party samples, unsupported per §1.3"
+    provenance: {kind: inferred, question_id: Q2}
+  - name: examples-demos
+    scope: out
+    reason: "examples/ demonstration programs, not the supported library surface per §1.3"
+    provenance: {kind: documented, source: "zlib source layout"}
+
+host_side_effects:
+  - {effect: network-sockets, stance: absent, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported library entry points", provenance: {kind: inferred, question_id: Q5}}
+  - {effect: child-processes, stance: absent, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported library entry points", provenance: {kind: inferred, question_id: Q5}}
+  - {effect: signal-handlers, stance: absent, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported library entry points", provenance: {kind: inferred, question_id: Q5}}
+  - {effect: environment-reads, stance: absent, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported library entry points", provenance: {kind: inferred, question_id: Q5}}
+  - {effect: filesystem, stance: conditional, components: [gzip-file-api], conditions: "only gz* file APIs touch caller-named paths", provenance: {kind: documented, source: "zlib manual"}}
+
+entry_points:
+  - id: inflate
+    component: core-inflate
+    parameters:
+      - name: next_in/avail_in
+        attacker_controllable: true
+        control_kinds: [data, size]
+        caller_must_enforce: "none — memory-safety-untrusted-input"
+        provenance: {kind: documented, source: "inflate API contract"}
+      - name: next_out/avail_out
+        attacker_controllable: false
+        control_kinds: [data, size]
+        obligation_id: provide-valid-output-buffer
+        caller_must_enforce: "buffer >= claimed size; honor avail_out"
+        provenance: {kind: inferred, question_id: Q4}
+  - id: inflateInit2
+    component: core-inflate
+    parameters:
+      - name: windowBits
+        attacker_controllable: false
+        control_kinds: [size]
+        obligation_id: valid-window-bits
+        caller_must_enforce: "within documented range"
+        provenance: {kind: inferred, question_id: Q4}
+  - id: gzopen
+    component: gzip-file-api
+    parameters:
+      - name: path
+        attacker_controllable: false
+        control_kinds: [resource-name]
+        obligation_id: sanitize-gzip-path
+        caller_must_enforce: "validate/sanitize path before passing"
+        provenance: {kind: documented, source: "gzopen API contract"}
+
+contract_dimensions:
+  - {component: core-inflate, dimension: numeric-domain, status: claimed, conditions: "documented size types/ranges", property_id: memory-safety-untrusted-input, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-inflate, dimension: failure-atomicity, status: disclaimed, conditions: "failed stream may require reset/end", property_id: failure-state-atomicity, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-inflate, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "byte streams are not object graphs", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: core-inflate, dimension: callback-execution, status: disclaimed, conditions: "caller allocator is trusted", property_id: trusted-callback-safety, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-inflate, dimension: serialization-reconstruction, status: not-applicable, conditions: "no object reconstruction", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: core-inflate, dimension: reference-lifecycle, status: claimed, conditions: "stream lifetime follows init/end", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-inflate, dimension: concurrency-reentrancy, status: claimed, conditions: "independent streams only", property_id: independent-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
+  - {component: core-inflate, dimension: resource-complexity, status: disclaimed, conditions: "caller caps expanded output", property_id: decompression-bomb-resistance, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: numeric-domain, status: claimed, conditions: "documented size types/ranges", property_id: memory-safety-untrusted-input, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: failure-atomicity, status: disclaimed, conditions: "failed stream may require reset/end", property_id: failure-state-atomicity, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "byte streams are not object graphs", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: core-deflate, dimension: callback-execution, status: disclaimed, conditions: "caller allocator is trusted", property_id: trusted-callback-safety, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: serialization-reconstruction, status: not-applicable, conditions: "no object reconstruction", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: core-deflate, dimension: reference-lifecycle, status: claimed, conditions: "stream lifetime follows init/end", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: concurrency-reentrancy, status: claimed, conditions: "independent streams only", property_id: independent-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
+  - {component: core-deflate, dimension: resource-complexity, status: disclaimed, conditions: "caller selects memory level", property_id: resource-budgeting, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: gzip-file-api, dimension: numeric-domain, status: claimed, conditions: "documented lengths and offsets", property_id: output-bound-honored, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: gzip-file-api, dimension: failure-atomicity, status: disclaimed, conditions: "I/O may partially advance file state", property_id: failure-state-atomicity, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: gzip-file-api, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "handles are not object graphs", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: gzip-file-api, dimension: callback-execution, status: not-applicable, conditions: "no caller executable callback", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: gzip-file-api, dimension: serialization-reconstruction, status: not-applicable, conditions: "no object reconstruction", provenance: {kind: documented, source: "zlib API shape"}}
+  - {component: gzip-file-api, dimension: reference-lifecycle, status: claimed, conditions: "handle valid until gzclose", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: gzip-file-api, dimension: concurrency-reentrancy, status: disclaimed, conditions: "shared handles need synchronization", property_id: shared-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
+  - {component: gzip-file-api, dimension: resource-complexity, status: disclaimed, conditions: "caller caps output and I/O", property_id: decompression-bomb-resistance, provenance: {kind: documented, source: "zlib manual"}}
+
+outputs:
+  - component: core-inflate
+    channel: inflate-output-buffer
+    taint: same-as-input
+    taint_provenance: {kind: documented, source: "inflate API contract"}
+    invariants:
+      - id: output-bound-honored
+        statement: "writes bounded by caller-supplied avail_out"
+        property_id: output-bound-honored
+        provenance: {kind: documented, source: "inflate API contract"}
+    downstream_must_not_assume:
+      - id: output-is-grammar-safe
+        statement: "output is safe for a higher-layer grammar"
+        provenance: {kind: inferred, question_id: Q3}
+
+adversaries:
+  - name: compressed-input-author
+    scope: in
+    capabilities: [supply-input-bytes, choose-input-size]
+    excluded_capabilities: [control-host-process]
+    goals: [memory-corruption, resource-exhaustion]
+    provenance: {kind: documented, source: "zlib manual"}
+  - name: in-process-caller
+    scope: out
+    capabilities: [control-host-process]
+    excluded_capabilities: []
+    goals: []
+    provenance: {kind: inferred, question_id: Q1}
+
+dependency_policy:
+  zero_runtime_dependencies: false
+  provenance: {kind: documented, source: "zlib build manifest"}
+
+dependencies:
+  - name: caller-supplied-allocator
+    relied_on_for: "standard zalloc/zfree allocator contract"
+    relied_on_properties: [allocator-size-correctness]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: "allocator API contract"}
+  - name: platform-libc
+    relied_on_for: "host libc malloc/free and standard runtime facilities"
+    relied_on_properties: [allocator-size-correctness]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: "zlib manual"}
+
+build_policy:
+  security_relevant_flags_present: true
+  provenance: {kind: documented, source: "zlib build documentation"}
+
+build_flags:
+  - name: ZLIB_CONST
+    default: "off"
+    security_relevant: false
+    maintainer_stance: supported
+    affects_properties: []
+    provenance: {kind: documented, source: "zlib build documentation"}
+  - name: custom-MAX_WBITS
+    default: "shipped default"
+    security_relevant: true
+    maintainer_stance: supported
+    affects_properties:
+      - {property_id: configured-window-memory-bound, effect: narrows}
+    provenance: {kind: documented, source: "zlib build documentation"}
+
+properties_claimed:
+  - {id: memory-safety-untrusted-input, kind: memory-safety, components: [core-inflate, core-deflate], tier: security-critical, conditions: "any input on a supported platform", violation_symptoms: [crash, oob-read, oob-write], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: output-bound-honored, kind: resource-bound, components: [core-inflate, gzip-file-api], tier: security-critical, conditions: "single call with valid output buffer", violation_symptoms: [buffer-overflow], provenance: {kind: documented, source: "inflate API contract"}}
+  - {id: termination, kind: availability, components: [core-inflate], tier: security-critical, conditions: "valid or invalid input", violation_symptoms: [hang, infinite-loop], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: stream-lifecycle, kind: correctness, components: [core-inflate, core-deflate, gzip-file-api], tier: correctness-only, conditions: "documented init/end or open/close sequence", violation_symptoms: [invalid-state], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: independent-stream-thread-safety, kind: correctness, components: [core-inflate, core-deflate], tier: correctness-only, conditions: "streams are independent", violation_symptoms: [data-race], provenance: {kind: documented, source: "zlib FAQ"}}
+  - {id: configured-window-memory-bound, kind: resource-bound, components: [core-inflate, core-deflate], tier: correctness-only, conditions: "internal window allocation is bounded by configured MAX_WBITS", violation_symptoms: [allocation-exceeds-configured-bound], provenance: {kind: documented, source: "zlib build documentation"}}
+
+properties_disclaimed:
+  - {id: confidentiality-integrity-authenticity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported configurations", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: crc-as-mac, components: [gzip-file-api], conditions: "all supported configurations", false_friend: true, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: decompression-bomb-resistance, components: [core-inflate, gzip-file-api], conditions: "no caller output budget", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: failure-state-atomicity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "operation returns failure", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: trusted-callback-safety, components: [core-inflate, core-deflate], conditions: "caller allocator violates its contract", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: resource-budgeting, components: [core-deflate], conditions: "caller-selected memory level", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: shared-stream-thread-safety, components: [gzip-file-api], conditions: "shared handle without synchronization", false_friend: false, provenance: {kind: documented, source: "zlib FAQ"}}
+
+downstream_responsibilities:
+  - {id: cap-decompressed-output, component: core-inflate, statement: "cap total decompressed output", enforces: [decompression-bomb-resistance], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: sanitize-output, component: core-inflate, statement: "treat output as untrusted", enforces: [output-is-grammar-safe], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: serialize-shared-stream, component: gzip-file-api, statement: "synchronize shared stream access", enforces: [shared-stream-thread-safety], provenance: {kind: documented, source: "zlib FAQ"}}
+
+known_misuses:
+  - {id: crc-used-as-mac, component: gzip-file-api, pattern: "using CRC-32 for authentication", safer_alternative: "use a MAC", provenance: {kind: documented, source: "zlib manual"}}
+  - {id: unbounded-decompression, component: core-inflate, pattern: "decompressing without an output cap", safer_alternative: "enforce an output budget", provenance: {kind: documented, source: "zlib manual"}}
+
+known_non_findings:
+  - {id: fuzzer-unbounded-memory, component: core-inflate, tool_pattern: "OOM on crafted stream without an output cap", conditions: "no output budget and no memory-safety violation", discharged_by: [decompression-bomb-resistance], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: crc-forgery, component: gzip-file-api, tool_pattern: "CRC/Adler collision or forgery report", conditions: "report assumes checksum authenticity rather than memory corruption", discharged_by: [crc-as-mac], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: msan-uninitialized-value, component: core-deflate, tool_pattern: "MSan/Valgrind use-of-uninitialized-value in the deflate match loop", conditions: "value never affects output and no memory-safety violation is shown", discharged_by: [memory-safety-untrusted-input], provenance: {kind: documented, source: "zlib FAQ"}}
+
+dispositions:
+  - VALID
+  - VALID-HARDENING
+  - "OUT-OF-MODEL: trusted-input"
+  - "OUT-OF-MODEL: adversary-not-in-scope"
+  - "OUT-OF-MODEL: unsupported-component"
+  - "OUT-OF-MODEL: non-default-build"
+  - "OUT-OF-MODEL: dependency-contract"
+  - "BY-DESIGN: property-disclaimed"
+  - KNOWN-NON-FINDING
+  - MODEL-GAP
+
+disposition_precedence:
+  - KNOWN-NON-FINDING
+  - "OUT-OF-MODEL: unsupported-component"
+  - "OUT-OF-MODEL: non-default-build"
+  - "OUT-OF-MODEL: dependency-contract"
+  - "OUT-OF-MODEL: trusted-input"
+  - "OUT-OF-MODEL: adversary-not-in-scope"
+  - "BY-DESIGN: property-disclaimed"
+  - VALID
+  - VALID-HARDENING
+  - MODEL-GAP

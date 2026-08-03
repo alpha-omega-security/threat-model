@@ -1,0 +1,7 @@
+# Threat-model batch targets — one repository URL per line.
+# Blank lines and lines starting with '#' are ignored.
+# An optional second token pins a git ref (branch, tag, or commit).
+
+https://github.com/jashkenas/underscore
+https://github.com/madler/zlib
+https://github.com/lodash/lodash  4.17.21

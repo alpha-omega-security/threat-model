@@ -1,10 +1,12 @@
-# threat-model
+# Threat Model Generator
 
-A set of [agent skills](https://agentskills.io/) for producing threat models for open-source projects — an orchestrator plus independently invocable specialists.
+A set of [agent skills](https://agentskills.io/) for producing threat models for open-source projects, including an orchestrator and independently invocable specialists.
 
 The output is a document describing the implicit security contract between a project and its downstream users: what the project assumes about its environment and inputs, which security properties it claims, which it explicitly disclaims, and which threats are left to the integrator. It is written to serve two readers at once: the downstream integrator deciding what they are now responsible for, and the maintainer or triager deciding whether an inbound vulnerability report is valid, out of model, or by design.
 
 This is not a vulnerability scanner or audit tool. It produces a contract, not findings.
+
+New to security threat modeling? The [glossary](./skills/threat-model/references/glossary.md) defines the jargon — dispositions, sinks, disclaimed properties, provenance tags — in plain language for maintainers coming at this fresh.
 
 ## Install
 
@@ -37,6 +39,38 @@ Draft a SECURITY.md scope section.
 
 The skill runs draft-first by default: it orients on the codebase and existing docs, writes a provisional model with every claim tagged `(documented)` / `(maintainer)` / `(inferred)`, and collects open questions for the maintainers into waves. Answering a wave promotes the matching claims and retires the questions.
 
+### Answering the open questions
+
+The open questions live **inside the model itself**, in the `§1.18 Open questions for the maintainers` section — that section *is* the working scratchpad, so you do not need a separate document. Each question states a proposed answer and names the section its answer lands in, so you (or a maintainer) can react to a draft rather than fill in a blank questionnaire.
+
+To resolve them, hand the answers back to the agent and ask it to continue — for example:
+
+```
+Here are answers to the §1.18 open questions: Q3 yes, Q4 no (we never spawn processes), Q7 confirmed. Update the threat model.
+```
+
+The agent re-runs the interview/authoring loop: it promotes each answered claim from `(inferred)` / `(assumption)` to `(maintainer, YYYY-MM)`, deletes the resolved questions, updates the affected contract-dimension rows and confidence counts, re-runs the backtest on the changed areas, and regenerates the YAML sidecar. There is no separate command — re-invoking the skill with the answers continues the same modeling exercise. You can also answer in waves; each pass shrinks §1.18 until the model reaches `accepted` (zero inferred/assumption claims left).
+
+### When to re-run
+
+Re-run a threat-model update when something changes what the model describes. Section `§1.16 Conditions that would change this model` lists the triggers — a new public API or input format, a new network surface or deployment context, a changed configuration default, a new or updated dependency, a shipped-but-unsupported component promoted to core, or any inbound report that cannot be cleanly routed to a disposition. Also re-bind the model to each release, since it is versioned alongside the project (a report against version *N* is triaged against the model as it stood at *N*).
+
+### Generate non-interactively (`new_threat_model.py`)
+
+For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting `docs/threat-model.md` + `threat-model.yaml` into the output directory.
+
+```pwsh
+# needs `git` plus an authenticated `copilot` (or `claude`) CLI on PATH
+python new_threat_model.py --repo https://github.com/madler/zlib --out ./out/zlib
+
+# choose the agent, scope to a monorepo subdirectory, and triage a finding corpus
+python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
+    --subdir src --corpus findings.jsonl --out ./out/repo
+```
+
+It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
+
+
 ## What you get
 
 A `docs/threat-model.md` (or similar) with:
@@ -64,6 +98,7 @@ skills/
 │       ├── question-bank.md          # maintainer questions, grouped by wave
 │       ├── sidecar-schema.md         # the threat-model.yaml schema
 │       ├── self-check.md             # the finalize gates
+│       ├── glossary.md               # plain-language definitions of the jargon
 │       └── worked-example.md         # a zlib flavor sketch
 ├── threat-model-recon/               # orient + mine existing docs (phases 3.1–3.2)
 ├── threat-model-surface/             # deep in-scope code pass (phase 3.3)

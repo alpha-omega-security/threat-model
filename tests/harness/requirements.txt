@@ -1,0 +1,4 @@
+# Runtime dependency for the threat-model evaluation harness.
+PyYAML>=6.0
+# Test runner (dev only).
+pytest>=8.0

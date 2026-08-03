@@ -24,6 +24,12 @@ Read [principles.md](../threat-model/references/principles.md) first.
 
 ## Step 1 — Orient (3.1)
 
+**Scope to the published, committed state.** Orient on a released tag or merged
+commit — the code, docs, and rulings a downstream reader can actually see. Do
+not pull in uncommitted local edits, unmerged branches, draft PRs, or stashes;
+they are invisible to anyone the shipped model is written for. Note the exact
+ref you modeled for the §1.1 version binding.
+
 Do a light pass and record hypotheses:
 
 - Read `README`, top-level docs, and any existing `SECURITY*`, `THREAT*`, or

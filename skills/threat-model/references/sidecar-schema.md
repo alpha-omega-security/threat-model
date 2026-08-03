@@ -26,6 +26,15 @@ model_status: unratified-draft # draft | unratified-draft | under-review | accep
 triage_policy: strict          # strict (default) | relaxed
 confidence: {documented: 29, maintainer: 24, inferred: 6, assumption: 0}
 
+generation:                   # from §1.1 generation metadata; omit entirely for a fully human-authored model
+  model: "Claude Opus 4.8"    # producing model/agent, name + version
+  effort: high                # reasoning/effort level: low | medium | high | <provider label>
+  plugins:                    # skills / plugins / MCP servers that drove production; only those used
+    - threat-model
+    - threat-model-recon
+    - threat-model-surface
+    - threat-model-sidecar
+
 components:                   # from §1.2 / §1.3
   - name: core-inflate
     scope: in                 # in | out
@@ -231,7 +240,9 @@ disposition_precedence:       # from §1.17; first matching rule wins
   `dependencies`, `build_policy`, `build_flags`, `properties_claimed`,
   `properties_disclaimed`, `downstream_responsibilities`, `known_misuses`,
   `known_non_findings`, `dispositions`, and `disposition_precedence`. Lists may be empty only when the
-  prose explicitly supports that absence. Unknown keys require an `x-` prefix.
+  prose explicitly supports that absence. `triage_policy` and `generation` are
+  optional recognized top-level keys (see below): they may appear without an
+  `x-` prefix but are not required. Any other unknown key requires an `x-` prefix.
 - Normalize prose status as follows: `draft` → `draft`, `unratified draft` →
   `unratified-draft`, `under maintainer review` → `under-review`, and `accepted`
   → `accepted`. The sidecar value is normalized; it need not textually equal the
@@ -241,6 +252,12 @@ disposition_precedence:       # from §1.17; first matching rule wins
   file is available; a label such as `draft` or `v1` is not sufficient.
 - `confidence` must equal the header's draft-confidence count (§1.1). If they
   disagree, the sidecar is stale — regenerate.
+- `generation` is optional §1.1 provenance metadata about how the model was
+  produced; omit it entirely for a fully human-authored model. When present it
+  carries `model` (producing model/agent, name + version), `effort` (reasoning
+  or effort level: `low` | `medium` | `high` | a provider label), and `plugins`
+  (the skills/plugins/MCP servers that actually drove production). It is
+  descriptive only — triage tooling must not derive any disposition from it.
 - `entry_points[].parameters[]` is the structured form of the §1.7 input-
   operand table; `name` may identify a direct parameter or a documented
   indirect input. Every attacker-controllable operand has a non-empty

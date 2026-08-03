@@ -83,7 +83,9 @@ projects**.
    policy** to the top-level `triage_policy` (`strict` default / `relaxed`).
    Carry `tier` (`security-critical | correctness-only`) on every
    `properties_disclaimed[]` entry so a consumer can enforce the assumption
-   security-critical floor.
+   security-critical floor. Project the §1.1 **generation metadata** to the
+   top-level `generation` block (`model`, `effort`, `plugins[]`); omit the block
+   only when the prose header records a fully human-authored model.
 
 ## Validation gate
 
@@ -121,6 +123,9 @@ Reject (and hand back) if any of these fail:
 - [ ] `triage_policy` is `strict` or `relaxed` (defaulting to `strict` when the
   header is silent); every `assumption` provenance record carries a
   `question_id`, and every `properties_disclaimed[]` entry carries a `tier`.
+- [ ] The `generation` block matches the §1.1 generation metadata (`model`,
+  `effort`, and the `plugins[]` actually used), or is absent only when the prose
+  records a fully human-authored model.
 - [ ] No key outside the schema except under an `x-` prefix.
 
 ## Output

@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/libexpat/libexpat",
+  "controls_per_episode": 5,
+  "vulns": [
+    {"id": "CVE-2022-25235", "ground_truth": "VALID"},
+    {"id": "CVE-2022-25236", "ground_truth": "VALID"},
+    {"id": "CVE-2022-40674", "ground_truth": "VALID"},
+    {"id": "CVE-2024-45490", "ground_truth": "VALID"}
+  ]
+}

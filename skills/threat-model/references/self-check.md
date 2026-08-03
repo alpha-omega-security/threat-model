@@ -13,6 +13,9 @@ sidecar + backtest specialists have reported.
 - [ ] The header reports a draft-confidence count and the correct status,
       including `unratified draft` where the §3.7 termination policy applied, and
       declares the **triage policy** (`strict` default / `relaxed`).
+- [ ] The header records **generation metadata** — producing model/agent +
+      version, effort level, and the plugins/skills actually used — or marks the
+      model human-authored; the sidecar's `generation` block matches.
 - [ ] Every *(inferred)* and *(assumption)* tag has a matching item in §1.18,
       and every item states a proposed answer. (Edge-case probes of
       *(documented)* claims and meta/ownership questions without an
