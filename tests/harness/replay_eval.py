@@ -61,7 +61,7 @@ def _load_specs(config: Path) -> list[ReplaySpec]:
 def _build_runner(args):
     if args.runner == "stub":
         return StubTriageRunner()
-    skill_dir = Path(args.skill_dir) if args.skill_dir else (_REPO / ".github" / "skills")
+    skill_dir = Path(args.skill_dir) if args.skill_dir else (_REPO / "skills")
     return SubprocessTriageRunner(args.command, skill_dir=skill_dir,
                                   cwd=_REPO, timeout=args.timeout)
 

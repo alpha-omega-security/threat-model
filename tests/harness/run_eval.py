@@ -81,7 +81,7 @@ def _load_specs(config: Path) -> list[ProjectSpec]:
 def _build_runner(args) -> object:
     if args.runner == "stub":
         return StubRunner()
-    skill_dir = Path(args.skill_dir) if args.skill_dir else (_REPO / ".github" / "skills")
+    skill_dir = Path(args.skill_dir) if args.skill_dir else (_REPO / "skills")
     return SubprocessRunner(args.command, skill_dir=skill_dir,
                             cwd=_REPO, timeout=args.timeout)
 

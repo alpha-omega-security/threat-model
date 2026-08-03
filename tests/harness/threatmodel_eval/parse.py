@@ -1,7 +1,7 @@
 """Parsers for a threat-model prose document and its YAML sidecar.
 
 The prose document follows the canonical section structure in
-``.github/skills/threat-model/references/output-structure.md`` (headings like
+``skills/threat-model/references/output-structure.md`` (headings like
 ``## 1.7 Assumptions about inputs``). The sidecar follows
 ``sidecar-schema.md`` (``schema: threat-model-sidecar/v2``).
 

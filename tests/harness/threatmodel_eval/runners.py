@@ -280,7 +280,8 @@ class SubprocessTriageRunner:
             id=report.id, outdir=str(outdir), skill_dir=str(self.skill_dir),
         )
         proc = subprocess.run(
-            cmd, shell=True, cwd=str(self.cwd) if self.cwd else None,
+            shlex.split(cmd), shell=False,
+            cwd=str(self.cwd) if self.cwd else None,
             timeout=self.timeout, capture_output=True, text=True,
             encoding="utf-8", errors="replace", env={**os.environ},
         )

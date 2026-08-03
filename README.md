@@ -68,7 +68,7 @@ python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
     --subdir src --corpus findings.jsonl --out ./out/repo
 ```
 
-It is pure-stdlib Python 3.8+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
+It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
 
 
 ## What you get

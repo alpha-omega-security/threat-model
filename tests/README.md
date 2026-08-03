@@ -1,9 +1,9 @@
 # Threat-model quality harness
 
 This directory proves the threat-model skill set in
-[../.github/skills/](../.github/skills/) produces **high-quality** threat
+[../skills/](../skills/) produces **high-quality** threat
 models — not just that it runs. Quality is defined by the skill's own gates in
-[self-check.md](../.github/skills/threat-model/references/self-check.md), so the
+[self-check.md](../skills/threat-model/references/self-check.md), so the
 harness turns those gates into executable checks and measures the two outcomes
 that matter: is the model *well-formed and internally consistent*, and does it
 let a triager *route real findings correctly and fail safe*.

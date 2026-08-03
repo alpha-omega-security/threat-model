@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.engine:
         sidecar = load_sidecar(args.engine)
-        preds = {c.id: triage(c.signal, sidecar).disposition for c in corpus}
+        preds = {c.id: triage(c.signal, sidecar).effective for c in corpus}
     elif args.reference:
         preds = {c.id: c.ground_truth for c in corpus}
     elif args.predictions:

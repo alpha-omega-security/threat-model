@@ -67,7 +67,7 @@ padding.
 
 ## Why this tier exists
 
-Gate 4 in [self-check.md](../../.github/skills/threat-model/references/self-check.md)
+Gate 4 in [self-check.md](../../skills/threat-model/references/self-check.md)
 is explicitly judgemental ("reads like a model, not an audit"; "as substantive
 as"). Those cannot be regex-checked without being gamed. The judge closes that
 gap, and calibrating on the golden keeps the scale stable across runs and

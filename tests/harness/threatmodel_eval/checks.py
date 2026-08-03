@@ -1,7 +1,7 @@
 """Deterministic checks over a threat-model document and its sidecar.
 
 These operationalize the checkable subset of the four self-check gates in
-``.github/skills/threat-model/references/self-check.md`` plus the sidecar schema
+``skills/threat-model/references/self-check.md`` plus the sidecar schema
 in ``sidecar-schema.md``. Judgemental items (is §1.12 "as substantive as"
 §1.11? is the prose free of audit output?) are out of scope here — they belong
 to the rubric / LLM-judge tier.
