@@ -238,8 +238,7 @@ def _snippet(text: Optional[str], limit: int = _SNIPPET_CHARS) -> str:
         text = text[:limit].rstrip() + " …[truncated]"
     # Keep the vendored body from opening a fenced block that swallows the rest
     # of the file, and demote headings so the section structure stays ours.
-    text = text.replace("```", "~~~")
-    return "\n".join(
+    text = re.sub(r"(`{3,}|~{3,})", lambda m: "".join("\\" + ch for ch in m.group(0)), text)
         ("#### " + ln.lstrip("# ") if ln.startswith("#") else ln)
         for ln in text.splitlines()
     )
