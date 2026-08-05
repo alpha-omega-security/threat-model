@@ -69,7 +69,7 @@ SECURITY_LABELS = ("security", "vulnerability")
 DEFAULT_ISSUE_TERMS = ("security", "vulnerability", "cve")
 
 # What counts as a security reference when scanning the project homepage.
-SECURITY_REF_RE = re.compile(r"security|audit|advisor|vulnerab|cve|pentest", re.I)
+SECURITY_REF_RE = re.compile(r"security|audit|advisory|vulnerab|cve|pentest", re.I)
 
 DEFAULT_FILENAME = "security-context.md"
 
