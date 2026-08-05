@@ -380,8 +380,8 @@ def run_job(
         cmd += ["--effort", config.effort]
     if args.validator:
         cmd += ["--validator-path", str(args.validator)]
-    cmd += target.extra_args
     cmd += config.extra_args
+    cmd += target.extra_args
 
     step(f"[run ] {target.slug} / {config.slug}  ({config.agent} {config.model or 'default'} {config.effort})")
     started = _now()
