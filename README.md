@@ -70,6 +70,32 @@ python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
 
 It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
 
+### Vendor external security history (`fetch_security_context.py`)
+
+By default a generation run works only from what is in the clone; whether the agent also consults advisories or the issue tracker depends on its web tools. [`fetch_security_context.py`](./fetch_security_context.py) makes that input deterministic: it gathers the repository's published GitHub security advisories, the matching OSV.dev records (with fixing commits), security-related issues (labeled **or** mentioning security-type terms — repos like zlib use no labels at all), issues maintainers closed as not-planned/wontfix/invalid, and security/audit links discovered on the project homepage (how an external audit report linked from zlib.net gets found) into a single `security-context.md`. `--extra-url` additionally vendors the text of named pages, e.g. a commissioned audit report. The recon phase mines that file as maintainer-authored or maintainer-acknowledged public record — citing the original advisory/issue URLs as `(documented, <url>)` — and the backtest phase seeds its corpus from the vulnerability history. Per the leave-out list, none of the CVE history itself enters the published document.
+
+```pwsh
+# standalone (GITHUB_TOKEN recommended; --package adds an OSV ecosystem query)
+$env:GITHUB_TOKEN = "<token>"
+python fetch_security_context.py --repo https://github.com/libexpat/libexpat `
+    --package Debian:expat --out ./security-context.md
+
+# vendor a specific external document (audit report, security page) as well
+python fetch_security_context.py --repo https://github.com/madler/zlib `
+    --extra-url https://7asecurity.com/blog/2026/02/zlib-7asecurity-audit/ `
+    --out ./security-context.md
+
+# or let the runner fetch it into the clone before generation
+python new_threat_model.py --repo https://github.com/libexpat/libexpat `
+    --fetch-security-context --out ./out/libexpat
+
+# or reuse a pre-built file
+python new_threat_model.py --repo https://github.com/libexpat/libexpat `
+    --security-context ./security-context.md --out ./out/libexpat
+```
+
+A fetch failure never aborts generation — the run degrades to repo-only and the prompt drops the reference to the file. The vendored file is copied next to the output artifacts so a reviewer can see exactly which external history informed the run.
+
 
 ## What you get
 

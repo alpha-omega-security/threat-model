@@ -24,7 +24,10 @@ threat model).
 
 1. **Assemble a stratified corpus** — start with the last 10–30 inbound security
    findings: published advisories, reports closed as "not a bug" / "by design",
-   issues labeled `security`, and scanner/fuzzer/AI-analysis output. Prefer
+   issues labeled `security`, and scanner/fuzzer/AI-analysis output. If a
+   vendored `security-context.md` is present in the working directory (a
+   runner's pre-fetch of exactly this material), seed the corpus from it before
+   searching elsewhere. Prefer
    contested items, but do not let recency or controversy leave component
    families or contract dimensions untested.
    - Cover every in-scope component family.

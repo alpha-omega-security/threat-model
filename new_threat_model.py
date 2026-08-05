@@ -5,19 +5,26 @@ This is the generation adapter behind the harness's ``subprocess`` runner
 (``tests/harness/run_eval.py``). It:
 
   1. clones the target repo (shallow, optional ref) into a work directory;
-  2. copies the threat-model skill set into the clone's repository-level skill
+  2. optionally vendors the repo's external security history (published
+     advisories, OSV.dev records, security-labeled issues, wontfix/not-planned
+     rulings) into ``security-context.md`` inside the clone, either fetched
+     live (``--fetch-security-context``, via ``fetch_security_context.py``) or
+     copied from a pre-built file (``--security-context``), so the skill's
+     recon phase mines deterministic material instead of relying on the
+     agent's own web access;
+  3. copies the threat-model skill set into the clone's repository-level skill
      directory so the coding agent CLI discovers it -- ``.github/skills`` for
      Copilot, ``.claude/skills`` for Claude (each CLI reads only its own path);
-  3. invokes either the GitHub Copilot CLI (``copilot -p <prompt>
+  4. invokes either the GitHub Copilot CLI (``copilot -p <prompt>
      --allow-all-tools``) or the Claude CLI (``claude -p <prompt>
      --dangerously-skip-permissions``) to drive the ``threat-model``
      orchestrator skill, producing ``docs/threat-model.md`` and
      ``threat-model.yaml`` and -- if a corpus is supplied -- triaging each
      finding into ``predictions.jsonl``;
-  4. runs the deterministic validator and, for up to ``--max-repair-attempts``
+  5. runs the deterministic validator and, for up to ``--max-repair-attempts``
      passes, feeds any errors back to the agent for a targeted repair (disable
      with ``--no-repair``);
-  5. copies the artifacts into the output directory the harness reads.
+  6. copies the artifacts into the output directory the harness reads.
 
 Use ``--agent`` to choose which CLI drives the run: ``copilot`` (default) or
 ``claude``.
@@ -75,6 +82,10 @@ from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+# Where the vendored external security history lands inside the clone. The
+# prompt and the recon skill both name this file, so keep them in sync.
+SECURITY_CONTEXT_FILENAME = "security-context.md"
 
 
 class ScriptError(Exception):
@@ -384,6 +395,28 @@ def build_corpus_instruction(corpus: Optional[Path]) -> str:
     )
 
 
+def build_context_note(security_context: bool) -> str:
+    if not security_context:
+        return ""
+    return (
+        "\n\n"
+        "A vendored security-context file has been placed at:\n"
+        f"    ./{SECURITY_CONTEXT_FILENAME}\n"
+        "It holds point-in-time copies of the repository's published security\n"
+        "advisories, OSV.dev vulnerability records, security-related issues (labeled\n"
+        "or mentioning security), issues the maintainers closed as\n"
+        "not-planned/wontfix/invalid, and security/audit references discovered on the\n"
+        "project homepage (external audit reports, security pages). Mine it during\n"
+        "recon as maintainer-authored or maintainer-acknowledged public record:\n"
+        "rulings and advisory text are (documented, <url>) sources for maintainer\n"
+        "positions and contract edge decisions, homepage references are leads to\n"
+        "fetch and read, and the vulnerability history should seed the backtest\n"
+        "corpus.\n"
+        "Per the leave-out list, do NOT copy the CVE list or individual findings into\n"
+        "the published document, and do not treat this file as project source code."
+    )
+
+
 PROMPT_TEMPLATE = """You are generating a security threat model for the project checked out in the
 current directory ({project}).{subdir_note}
 
@@ -433,14 +466,14 @@ adversary-not-in-scope, unsupported-component, non-default-build, and a
 non-security-critical property-disclaimed) as a provisional, challengeable
 close. Under BOTH policies an (assumption) never licenses KNOWN-NON-FINDING, a
 security-critical property-disclaimed, or dependency-contract, and (inferred)
-never closes.{corpus_instruction}{effort_note}
+never closes.{context_note}{corpus_instruction}{effort_note}
 
 When you are done, briefly list the files you created."""
 
 
 def build_prompt(
     project: str, subdir: str, triage_policy: str, corpus: Optional[Path],
-    effort: str = "", agent: str = "copilot",
+    effort: str = "", agent: str = "copilot", security_context: bool = False,
 ) -> str:
     return PROMPT_TEMPLATE.format(
         project=project,
@@ -449,6 +482,7 @@ def build_prompt(
         corpus_instruction=build_corpus_instruction(corpus),
         effort_note=build_effort_note(effort),
         skill_path=skill_install_relpath(agent).as_posix(),
+        context_note=build_context_note(security_context),
     )
 
 
@@ -493,6 +527,27 @@ def parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     parser.add_argument("--ref", default="", help="Branch, tag, or commit to check out (default branch if omitted).")
     parser.add_argument("--subdir", default="", help="Model only this subdirectory of a monorepo.")
     parser.add_argument("--corpus", default="", help="JSON Lines finding corpus to triage into predictions.jsonl.")
+    parser.add_argument(
+        "--fetch-security-context", action="store_true",
+        help="Fetch the repo's advisories, OSV records, and issue rulings into "
+             f"{SECURITY_CONTEXT_FILENAME} inside the clone before generation "
+             "(uses GITHUB_TOKEN; see fetch_security_context.py).",
+    )
+    parser.add_argument(
+        "--security-context", default="",
+        help=f"Pre-built security-context file to copy into the clone as {SECURITY_CONTEXT_FILENAME} "
+             "(alternative to --fetch-security-context).",
+    )
+    parser.add_argument(
+        "--osv-package", default="",
+        help="OSV package query passed to the context fetcher, as <ecosystem>:<name> "
+             "(e.g. npm:express); only used with --fetch-security-context.",
+    )
+    parser.add_argument(
+        "--context-url", action="append", default=[],
+        help="Extra page whose text the context fetcher vendors (repeatable, e.g. an "
+             "external audit report); only used with --fetch-security-context.",
+    )
     parser.add_argument(
         "--skill-dir",
         default=str(SCRIPT_DIR / "skills"),
@@ -593,6 +648,14 @@ def run(args: argparse.Namespace, console: Console) -> int:
         if not corpus.exists():
             raise ScriptError(f"corpus file not found: {corpus}")
 
+    if args.security_context and args.fetch_security_context:
+        raise ScriptError("--security-context and --fetch-security-context are mutually exclusive")
+    prebuilt_context: Optional[Path] = None
+    if args.security_context:
+        prebuilt_context = Path(args.security_context).resolve()
+        if not prebuilt_context.exists():
+            raise ScriptError(f"security-context file not found: {prebuilt_context}")
+
     work_root = Path(args.work_root).resolve() if args.work_root else Path(tempfile.gettempdir()) / "threat-model-runs"
     clone_dir = work_root / project
 
@@ -616,7 +679,9 @@ def run(args: argparse.Namespace, console: Console) -> int:
 
     python_available = shutil.which(args.python_path) is not None or Path(args.python_path).exists()
 
-    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus, args.effort, args.agent)
+    context_expected = bool(prebuilt_context or args.fetch_security_context)
+    prompt = build_prompt(project, args.subdir, args.triage_policy, corpus,
+                          args.effort, args.agent, context_expected)
 
     # --- Dry run: show the plan and exit ---
     if args.dry_run:
@@ -638,6 +703,16 @@ def run(args: argparse.Namespace, console: Console) -> int:
         if not work_dir.exists():
             raise ScriptError(f"subdirectory '{args.subdir}' not found in clone (expected at {work_dir}).")
         console.step(f"Scoping generation to subdirectory: {args.subdir}")
+
+    # --- Vendor the external security history into the clone ---
+    # Done before the agent runs so recon has deterministic advisory/ruling
+    # material instead of relying on the agent's own web tools. A fetch failure
+    # degrades to a normal repo-only run: the prompt is rebuilt without the
+    # context note so the agent is never pointed at a file that does not exist.
+    have_context = _prepare_security_context(console, args, prebuilt_context, work_dir)
+    if have_context != context_expected:
+        prompt = build_prompt(project, args.subdir, args.triage_policy, corpus,
+                              args.effort, args.agent, have_context)
 
     # --- Install the skills so the agent CLI discovers them ---
     # Each agent CLI discovers repository skills from its own directory relative
@@ -715,6 +790,51 @@ def run(args: argparse.Namespace, console: Console) -> int:
     if not have_model:
         raise ScriptError(f"{args.agent} did not produce a threat-model.md — see {log_file}.")
     return 0
+
+
+def _prepare_security_context(
+    console: Console,
+    args: argparse.Namespace,
+    prebuilt_context: Optional[Path],
+    work_dir: Path,
+) -> bool:
+    """Place security-context.md in the agent's launch directory; return success.
+
+    A prebuilt file is copied verbatim; ``--fetch-security-context`` builds one
+    live via fetch_security_context.py. Fetch failures warn and return False —
+    external history is an enrichment, never a reason to abort generation.
+    """
+    dest = work_dir / SECURITY_CONTEXT_FILENAME
+    if prebuilt_context is not None:
+        console.step(f"Copying security context {prebuilt_context} -> {dest}")
+        shutil.copy2(prebuilt_context, dest)
+        return True
+    if not args.fetch_security_context:
+        return False
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        console.warn("GITHUB_TOKEN not set; security-context fetch may be rate-limited")
+    console.step(f"Fetching security context -> {dest}")
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        import fetch_security_context as fsc
+
+        summary = fsc.build_context(args.repo, dest, token=token, package=args.osv_package,
+                                    extra_urls=args.context_url)
+    except Exception as exc:  # noqa: BLE001 - any fetch failure degrades gracefully
+        console.warn(f"security-context fetch failed ({exc}); continuing without it")
+        return False
+    console.step(
+        "Security context: "
+        f"{summary['advisories']} advisories, {summary['osv_records']} OSV records, "
+        f"{summary['security_issues']} security issues, {summary['rulings']} rulings, "
+        f"{summary['homepage_refs']} homepage refs, {summary['extra_docs']} vendored docs"
+    )
+    for note in summary.get("notes", []):
+        console.warn(f"security-context: {note}")
+    return True
 
 
 def _repair_loop(
@@ -803,6 +923,10 @@ def _collect_artifacts(
     sidecar_src = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
     have_sidecar = copy_artifact(sidecar_src, out_dir / "threat-model.yaml")
 
+    # Keep the vendored security context with the artifacts so a reviewer can
+    # see exactly which external history informed the run.
+    copy_artifact(work_dir / SECURITY_CONTEXT_FILENAME, out_dir / SECURITY_CONTEXT_FILENAME)
+
     have_predictions = False
     if corpus:
         have_predictions = copy_artifact(work_dir / "predictions.jsonl", out_dir / "predictions.jsonl")
@@ -830,6 +954,17 @@ def _print_dry_run(
     console.info(f"Skill dir  : {skill_dir}")
     console.info(f"Installs to: <clone>/{skill_install_relpath(args.agent).as_posix()}")
     console.info(f"Corpus     : {corpus if corpus else '(none — predictions skipped)'}")
+    if args.security_context:
+        context_plan = f"prebuilt file {args.security_context}"
+    elif args.fetch_security_context:
+        context_plan = "fetch (advisories + OSV + issues + rulings + homepage refs)"
+        if args.osv_package:
+            context_plan += f", OSV package {args.osv_package}"
+        if args.context_url:
+            context_plan += f", {len(args.context_url)} extra url(s)"
+    else:
+        context_plan = "(none — repo-only run)"
+    console.info(f"Sec context: {context_plan}")
     console.info(f"Output dir : {out_dir}")
     console.info(f"Agent/model: {args.agent}" + (f" / {args.model}" if args.model else " / (default)"))
     console.info(f"Effort     : {args.effort or '(unset)'}")
