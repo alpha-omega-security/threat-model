@@ -768,6 +768,8 @@ def run(args: argparse.Namespace, console: Console) -> int:
 
     if args.security_context and args.fetch_security_context:
         raise ScriptError("--security-context and --fetch-security-context are mutually exclusive")
+    if args.fetch_security_context and args.osv_package:
+        _check_osv_package(args.osv_package)
     prebuilt_context: Optional[Path] = None
     if args.security_context:
         prebuilt_context = Path(args.security_context).resolve()
@@ -913,6 +915,25 @@ def run(args: argparse.Namespace, console: Console) -> int:
     if not have_model:
         raise ScriptError(f"{args.agent} did not produce a threat-model.md — see {log_file}.")
     return 0
+
+
+def _check_osv_package(value: str) -> None:
+    """Fail a malformed ``--osv-package`` before anything is cloned.
+
+    Delegates to the fetcher's validator (which raises ``ValueError``, never
+    ``SystemExit``); if the fetcher module is unavailable the fetch step itself
+    will surface that, so validation is simply skipped here.
+    """
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        import fetch_security_context as fsc
+    except ImportError:
+        return
+    try:
+        fsc.validate_osv_package(value)
+    except ValueError as exc:
+        raise ScriptError(f"--osv-package: {exc}") from exc
 
 
 def _remove_repo_supplied_context(console: Console, dest: Path) -> None:

@@ -31,6 +31,7 @@ from fetch_security_context import (  # noqa: E402
     osv_fix_commits,
     render_context,
     repo_slug,
+    validate_osv_package,
     validate_public_url,
     write_context_file,
 )
@@ -377,6 +378,45 @@ def test_replay_fetcher_scopes_its_token_the_same_way():
     http = fetch_replay._Http("sekret")
     assert http._headers("https://api.github.com/repos/x/y")["Authorization"] == "Bearer sekret"
     assert "Authorization" not in http._headers("https://api.osv.dev/v1/vulns/CVE-1")
+
+
+# --- osv package validation --------------------------------------------------
+# A malformed --osv-package must raise ValueError, never SystemExit: SystemExit
+# is a BaseException, so it would bypass the generator's `except Exception`
+# fallback and kill the whole generation instead of degrading to a repo-only run.
+def test_validate_osv_package_accepts_ecosystem_name_pairs():
+    assert validate_osv_package("npm:express") == ("npm", "express")
+    assert validate_osv_package(" PyPI : requests ") == ("PyPI", "requests")
+
+
+def test_validate_osv_package_raises_valueerror_not_systemexit():
+    for bad in ("npmexpress", "npm:", ":express", ":", "", "   "):
+        with pytest.raises(ValueError):
+            validate_osv_package(bad)
+
+
+def test_fetch_osv_records_and_build_context_fail_bad_package_before_network():
+    with pytest.raises(ValueError):
+        fsc.fetch_osv_records(fsc._Http(""), [], "no-colon", 10, [])
+    with pytest.raises(ValueError):  # no fetcher monkeypatching needed: fails first
+        fsc.build_context("https://github.com/x/y", Path("unused.md"), package="no-colon")
+
+
+def test_generator_degrades_to_repo_only_run_on_fetch_valueerror(tmp_path, monkeypatch):
+    def boom(*args, **kwargs):
+        raise ValueError("OSV package query must be <ecosystem>:<name>")
+
+    monkeypatch.setattr(fsc, "build_context", boom)
+    args = Namespace(fetch_security_context=True, repo="https://github.com/x/y",
+                     osv_package="no-colon", context_url=[])
+    ok = ntm._prepare_security_context(ntm.Console(color=False), args, None, tmp_path)
+    assert ok is False  # degraded, not terminated
+
+
+def test_generator_rejects_bad_osv_package_before_cloning():
+    with pytest.raises(ntm.ScriptError, match="--osv-package"):
+        ntm._check_osv_package("no-colon")
+    ntm._check_osv_package("npm:express")  # valid: no raise
 
 
 # --- symlink-safe context write and collection --------------------------------

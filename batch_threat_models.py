@@ -88,6 +88,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fetch_security_context import validate_osv_package  # noqa: E402
 from new_threat_model import (  # noqa: E402
     CLAUDE_STREAM_ARGS,
     ScriptError,
@@ -197,6 +198,13 @@ def parse_target_line(line: str) -> Target:
         elif key in _TARGET_OPTIONS:
             if key == "subdir":
                 _reject_traversal(value, line)
+            elif key == "osv-package":
+                # Malformed values fail the batch up front, like a bad URL or
+                # ref, instead of surfacing per job deep in the generator.
+                try:
+                    validate_osv_package(value)
+                except ValueError as exc:
+                    raise BatchError(f"{exc}: {line}") from exc
             extra += [_TARGET_OPTIONS[key], value]
         else:
             allowed = ", ".join(["ref", *_TARGET_OPTIONS])

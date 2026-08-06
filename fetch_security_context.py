@@ -102,6 +102,23 @@ def repo_slug(repo_url: str) -> str:
     return "/".join(urllib.parse.quote(p, safe="") for p in parts)
 
 
+def validate_osv_package(package: str) -> tuple:
+    """Validate an OSV package query as ``<ecosystem>:<name>``; return the pair.
+
+    Raises ``ValueError`` — deliberately not ``SystemExit``, which is a
+    ``BaseException`` and would sail past the ``except Exception`` fallback in
+    ``new_threat_model._prepare_security_context``, turning a malformed
+    ``--osv-package`` into a terminated generation instead of a repo-only run.
+    """
+    value = (package or "").strip()
+    eco, sep, name = value.partition(":")
+    eco, name = eco.strip(), name.strip()
+    if not sep or not eco or not name:
+        raise ValueError(
+            f"OSV package query must be <ecosystem>:<name>, e.g. npm:express; got: {package!r}")
+    return eco, name
+
+
 def write_context_file(out_path: Path, text: str) -> None:
     """Write ``text`` to ``out_path`` without ever following a symlink there.
 
@@ -595,9 +612,7 @@ def fetch_osv_records(http: _Http, advisories: list, package: str,
         except urllib.error.HTTPError as exc:
             notes.append(f"OSV lookup failed for {vid}: HTTP {exc.code}")
     if package:
-        eco, _, name = package.partition(":")
-        if not name:
-            raise SystemExit("--package must be <ecosystem>:<name>, e.g. npm:express")
+        eco, name = validate_osv_package(package)
         try:
             resp = http.post_json(
                 "https://api.osv.dev/v1/query",
@@ -727,6 +742,10 @@ def build_context(repo_url: str, out_path: Path, token: str = "",
     """
     http = _Http(token)
     slug = repo_slug(repo_url)
+    if package:
+        # Fail on a malformed package before any network work; raises ValueError,
+        # which embedding callers catch to degrade to a repo-only run.
+        validate_osv_package(package)
     notes: list = []
 
     try:
@@ -789,6 +808,11 @@ def main(argv=None) -> int:
             max_issues=args.max_issues, max_rulings=args.max_rulings,
             extra_urls=args.extra_url,
             issue_terms=tuple(t.strip() for t in args.issue_terms.split(",") if t.strip()))
+    except ValueError as exc:
+        # Bad --package / --repo value or a symlinked --out: an input problem,
+        # reported as such rather than as a traceback.
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except urllib.error.URLError as exc:  # pragma: no cover - network
         print(f"fetch failed: {exc}", file=sys.stderr)
         return 1

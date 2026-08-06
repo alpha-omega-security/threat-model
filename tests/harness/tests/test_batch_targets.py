@@ -48,6 +48,14 @@ def test_unknown_option_fails_loudly():
         parse_target_line("https://github.com/x/y context-uri=https://example.com")
 
 
+def test_malformed_osv_package_fails_at_parse_time():
+    # Must be BatchError (not SystemExit, which the fetcher once raised and
+    # which would bypass every except-Exception handler downstream).
+    for bad in ("osv-package=npmexpress", "osv-package=npm:", "osv-package=:express"):
+        with pytest.raises(BatchError, match="ecosystem"):
+            parse_target_line(f"https://github.com/x/y {bad}")
+
+
 def test_two_refs_and_empty_value_are_errors():
     with pytest.raises(BatchError, match="two refs"):
         parse_target_line("https://github.com/x/y v1 v2")
