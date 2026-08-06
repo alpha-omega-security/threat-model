@@ -1,7 +1,28 @@
 # Threat-model batch targets — one repository URL per line.
 # Blank lines and lines starting with '#' are ignored.
 # An optional second token pins a git ref (branch, tag, or commit).
+# key=value tokens set per-target generator options: ref=, subdir=,
+# osv-package=<ecosystem>:<name>, context-url=<url> (repeatable).
+# The last two feed the security-context fetcher; enable it batch-wide with
+# "extra_args": ["--fetch-security-context"] in the configs file.
 
-https://github.com/jashkenas/underscore
-https://github.com/madler/zlib
 https://github.com/lodash/lodash  4.17.21
+https://github.com/expressjs/express
+https://github.com/facebook/react
+https://github.com/axios/axios
+https://github.com/chalk/chalk
+https://github.com/tj/commander.js
+https://github.com/debug-js/debug
+https://github.com/vuejs/core
+https://github.com/webpack/webpack
+https://github.com/microsoft/TypeScript
+https://github.com/eslint/eslint
+https://github.com/prettier/prettier
+https://github.com/jestjs/jest
+https://github.com/vitejs/vite
+https://github.com/vercel/next.js
+https://github.com/motdotla/dotenv
+https://github.com/uuidjs/uuid
+https://github.com/yargs/yargs
+https://github.com/npm/node-semver
+https://github.com/isaacs/node-glob

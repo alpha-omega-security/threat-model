@@ -1,28 +1,18 @@
 {
   "defaults": {
     "agent": "copilot",
-    "triage_policy": "strict"
+    "triage_policy": "strict",
+    "extra_args": ["--fetch-security-context"]
   },
   "configs": [
     {
-      "name": "flash-high",
-      "model": "MAI-Code-1-Flash",
+      "name": "opus-5-high",
+      "model": "claude-opus-5",
       "effort": "high"
-    },
-    {
-      "name": "sonnet-high",
-      "agent": "claude",
-      "model": "claude-sonnet-4.6",
-      "effort": "high"
-    },
-    {
-      "name": "flash-medium",
-      "model": "MAI-Code-1-Flash",
-      "effort": "medium"
     }
   ],
   "compare": {
     "agent": "copilot",
-    "model": "claude-opus-4.8"
+    "model": "claude-opus-5"
   }
 }

@@ -29,6 +29,28 @@ class RunnerError(RuntimeError):
     pass
 
 
+def build_argv(command_template: str, **values: str) -> list[str]:
+    """Split a command template into argv, THEN substitute the placeholders.
+
+    Substituting first and splitting afterwards lets a value containing a quote
+    or a space inject extra arguments: a repo URL of ``https://h/r" --foo "``
+    would land ``--foo`` in the generator's argv as its own token. Splitting
+    first pins the argument boundaries, so each substituted value stays exactly
+    one argv entry no matter what it contains.
+
+    A placeholder may sit inside a larger token (``--repo={repo}``); the whole
+    token is still one argv entry after substitution.
+    """
+    argv = []
+    for token in shlex.split(command_template):
+        try:
+            argv.append(token.format(**values))
+        except (KeyError, IndexError) as exc:
+            raise RunnerError(
+                f"unknown placeholder in command template token {token!r}: {exc}") from exc
+    return argv
+
+
 @dataclass
 class ProjectSpec:
     name: str
@@ -121,13 +143,14 @@ class SubprocessRunner:
 
     def generate(self, spec: ProjectSpec, outdir: Path) -> Artifacts:
         outdir.mkdir(parents=True, exist_ok=True)
-        cmd = self.command_template.format(
+        argv = build_argv(
+            self.command_template,
             name=spec.name, repo=spec.repo, ref=spec.ref,
             corpus=str(spec.corpus), outdir=str(outdir),
             skill_dir=str(self.skill_dir),
         )
         proc = subprocess.run(
-            shlex.split(cmd), shell=False,
+            argv, shell=False,
             cwd=str(self.cwd) if self.cwd else None,
             timeout=self.timeout, capture_output=True, text=True,
             encoding="utf-8", errors="replace", env={**os.environ},
@@ -272,7 +295,8 @@ class SubprocessTriageRunner:
 
     def _one(self, spec: ReplaySpec, report, outdir: Path) -> str:
         report_path = _report_path(spec, report)
-        cmd = self.command_template.format(
+        argv = build_argv(
+            self.command_template,
             name=spec.name,
             model=str(spec.model) if spec.model else "",
             sidecar=str(spec.sidecar) if spec.sidecar else "",
@@ -280,7 +304,7 @@ class SubprocessTriageRunner:
             id=report.id, outdir=str(outdir), skill_dir=str(self.skill_dir),
         )
         proc = subprocess.run(
-            shlex.split(cmd), shell=False,
+            argv, shell=False,
             cwd=str(self.cwd) if self.cwd else None,
             timeout=self.timeout, capture_output=True, text=True,
             encoding="utf-8", errors="replace", env={**os.environ},

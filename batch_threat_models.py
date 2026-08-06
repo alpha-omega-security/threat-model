@@ -13,9 +13,12 @@ Inputs
 ``--targets`` FILE
     A flat file of target repository URLs, one per line. Blank lines and lines
     beginning with ``#`` are ignored. An optional second whitespace-separated
-    token pins a git ref, e.g.::
+    token pins a git ref, and ``key=value`` tokens set per-target generator
+    options — ``ref=``, ``subdir=``, ``osv-package=``, and ``context-url=``
+    (repeatable; pair these last two with ``--fetch-security-context`` in a
+    config's ``extra_args``), e.g.::
 
-        https://github.com/madler/zlib
+        https://github.com/madler/zlib  osv-package=Debian:zlib context-url=https://7asecurity.com/blog/2026/02/zlib-7asecurity-audit/
         https://github.com/jashkenas/underscore  1.13.8   # name, ref
 
 ``--configs`` FILE
@@ -85,7 +88,15 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from new_threat_model import CLAUDE_STREAM_ARGS, format_claude_event  # noqa: E402
+from fetch_security_context import validate_osv_package  # noqa: E402
+from new_threat_model import (  # noqa: E402
+    CLAUDE_STREAM_ARGS,
+    ScriptError,
+    format_claude_event,
+    validate_project_name,
+    validate_ref,
+    validate_repo_url,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_GENERATOR = SCRIPT_DIR / "new_threat_model.py"
@@ -140,13 +151,87 @@ def warn(msg: str) -> None:
 # Input parsing
 # ---------------------------------------------------------------------------
 class Target:
-    __slots__ = ("url", "ref", "name", "slug")
+    __slots__ = ("url", "ref", "name", "slug", "extra_args")
 
-    def __init__(self, url: str, ref: str = "") -> None:
+    def __init__(self, url: str, ref: str = "", extra_args: Optional[List[str]] = None) -> None:
         self.url = url
         self.ref = ref
         self.name = name_from_url(url)
         self.slug = slugify(self.name)
+        self.extra_args = extra_args or []
+
+
+# Per-target ``key=value`` options allowed on a targets-file line, mapped to
+# the generator flag each becomes. These are values that vary per repository
+# (unlike config ``extra_args``, which apply to every target in the run).
+_TARGET_OPTIONS = {
+    "subdir": "--subdir",
+    "osv-package": "--osv-package",
+    "context-url": "--context-url",  # repeatable
+}
+
+
+def parse_target_line(line: str) -> Target:
+    """Parse one targets-file line: ``url [ref] [key=value ...]``.
+
+    A bare second token is the git ref (the original format); ``ref=`` works
+    too. Option tokens map through ``_TARGET_OPTIONS`` to generator flags;
+    ``context-url=`` may repeat. Unknown keys fail loudly — a typo silently
+    dropping an audit URL would defeat the point of pinning it per target.
+    """
+    parts = line.split()
+    url, ref = parts[0], ""
+    extra: List[str] = []
+    for token in parts[1:]:
+        if "=" not in token:
+            if ref:
+                raise BatchError(f"target line has two refs ('{ref}', '{token}'): {line}")
+            ref = token
+            continue
+        key, _, value = token.partition("=")
+        if not value:
+            raise BatchError(f"target option '{key}=' has no value: {line}")
+        if key == "ref":
+            if ref:
+                raise BatchError(f"target line has two refs: {line}")
+            ref = value
+        elif key in _TARGET_OPTIONS:
+            if key == "subdir":
+                _reject_traversal(value, line)
+            elif key == "osv-package":
+                # Malformed values fail the batch up front, like a bad URL or
+                # ref, instead of surfacing per job deep in the generator.
+                try:
+                    validate_osv_package(value)
+                except ValueError as exc:
+                    raise BatchError(f"{exc}: {line}") from exc
+            extra += [_TARGET_OPTIONS[key], value]
+        else:
+            allowed = ", ".join(["ref", *_TARGET_OPTIONS])
+            raise BatchError(f"unknown target option '{key}' (allowed: {allowed}): {line}")
+
+    # A targets file is frequently authored by someone other than the operator,
+    # so validate here rather than letting a hostile URL, ref, or subdir reach
+    # git argv or the filesystem. The generator re-checks; this just fails the
+    # whole batch up front with the offending line instead of per job.
+    try:
+        url = validate_repo_url(url)
+        ref = validate_ref(ref)
+        validate_project_name(name_from_url(url))
+    except ScriptError as exc:
+        raise BatchError(f"{exc}: {line}") from exc
+    return Target(url, ref, extra)
+
+
+def _reject_traversal(subdir: str, line: str) -> None:
+    """Refuse a ``subdir=`` that would climb out of the clone.
+
+    The generator enforces containment against the real clone path; this catches
+    the obvious cases at parse time so a bad targets file fails before any
+    cloning happens.
+    """
+    if Path(subdir).is_absolute() or ".." in Path(subdir).parts:
+        raise BatchError(f"subdir must stay inside the clone: {subdir!r}: {line}")
 
 
 def load_targets(path: Path) -> List[Target]:
@@ -158,12 +243,9 @@ def load_targets(path: Path) -> List[Target]:
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
-        parts = line.split()
-        url = parts[0]
-        ref = parts[1] if len(parts) > 1 else ""
-        t = Target(url, ref)
+        t = parse_target_line(line)
         if t.slug in seen:
-            warn(f"duplicate target slug '{t.slug}' ({url}); skipping the duplicate")
+            warn(f"duplicate target slug '{t.slug}' ({t.url}); skipping the duplicate")
             continue
         seen.add(t.slug)
         targets.append(t)
@@ -338,6 +420,7 @@ def run_job(
     if args.validator:
         cmd += ["--validator-path", str(args.validator)]
     cmd += config.extra_args
+    cmd += target.extra_args
 
     step(f"[run ] {target.slug} / {config.slug}  ({config.agent} {config.model or 'default'} {config.effort})")
     started = _now()
@@ -660,7 +743,8 @@ def run(args: argparse.Namespace) -> int:
         f"{len(targets) * len(configs)} job(s); jobs={args.jobs}"
     )
     for t in targets:
-        print(f"    target  {t.slug:24} {t.url}" + (f"  @{t.ref}" if t.ref else ""))
+        opts = f"  {' '.join(t.extra_args)}" if t.extra_args else ""
+        print(f"    target  {t.slug:24} {t.url}" + (f"  @{t.ref}" if t.ref else "") + opts)
     for c in configs:
         print(f"    config  {c.slug:24} agent={c.agent} model={c.model or '(default)'} effort={c.effort or '—'}")
     if compare_enabled:
