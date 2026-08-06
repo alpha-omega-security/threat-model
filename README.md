@@ -70,6 +70,10 @@ python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
 
 It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
 
+Inputs are validated before they reach the filesystem or `git`, because a batch targets file is often authored by someone other than the operator: the repo URL must be an `https`/`http`/`ssh`/`git` remote (no `file://`, no local path, no `ext::` remote helper) and may not begin with `-`, the ref may not begin with `-` or contain characters git disallows, the project name must be a single directory name (it names a directory that the run deletes wholesale), and `--subdir` must resolve inside the clone (it is the agent's launch directory). A targets file that violates any of these fails the whole batch up front, naming the offending line.
+
+The agent still runs with `--allow-all-tools` / `--dangerously-skip-permissions` in the clone, so continue to treat generation as running untrusted code: prefer a container or throwaway user for repositories you do not trust.
+
 ### Vendor external security history (`fetch_security_context.py`)
 
 By default a generation run works only from what is in the clone; whether the agent also consults advisories or the issue tracker depends on its web tools. [`fetch_security_context.py`](./fetch_security_context.py) makes that input deterministic: it gathers the repository's published GitHub security advisories, the matching OSV.dev records (with fixing commits), security-related issues (labeled **or** mentioning security-type terms — repos like zlib use no labels at all), issues maintainers closed as not-planned/wontfix/invalid, and security/audit links discovered on the project homepage (how an external audit report linked from zlib.net gets found) into a single `security-context.md`. `--extra-url` additionally vendors the text of named pages, e.g. a commissioned audit report. The recon phase mines that file as maintainer-authored or maintainer-acknowledged public record — citing the original advisory/issue URLs as `(documented, <url>)` — and the backtest phase seeds its corpus from the vulnerability history. Per the leave-out list, none of the CVE history itself enters the published document.
@@ -94,7 +98,9 @@ python new_threat_model.py --repo https://github.com/libexpat/libexpat `
     --security-context ./security-context.md --out ./out/libexpat
 ```
 
-A fetch failure never aborts generation — the run degrades to repo-only and the prompt drops the reference to the file. The vendored file is copied next to the output artifacts so a reviewer can see exactly which external history informed the run.
+Page fetches are SSRF-guarded: the homepage scan, every `--extra-url`, and every redirect hop must be plain http(s) to a host resolving only to public addresses — `file://` URLs, loopback/private/link-local ranges, and cloud metadata endpoints are refused and recorded as notes in the output. A redirect that crosses hosts drops the `Authorization` header so a GitHub token cannot follow it off `api.github.com`. A fetch failure never aborts generation — the run degrades to repo-only and the prompt drops the reference to the file.
+
+Because the vendored issue bodies and page text are written by arbitrary third parties — anyone can file an issue — both the file header and the generation prompt mark the content as untrusted data rather than instructions, and tell the agent to report anything asking it to run commands, fetch unlisted URLs, or reveal credentials as a prompt-injection attempt. That framing is mitigation, not a guarantee; it is a further reason to run generation in a container when the target is untrusted. The vendored file is copied next to the output artifacts so a reviewer can see exactly which external history informed the run.
 
 
 ## What you get
