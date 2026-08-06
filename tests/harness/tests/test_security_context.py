@@ -7,13 +7,19 @@ that points the agent at the vendored file.
 """
 from __future__ import annotations
 
+import socket
 import sys
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 _REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO))
 
+import fetch_security_context as fsc  # noqa: E402
 from fetch_security_context import (  # noqa: E402
+    BlockedUrlError,
     dedupe_vulns,
     extract_security_links,
     html_to_text,
@@ -22,6 +28,7 @@ from fetch_security_context import (  # noqa: E402
     osv_fix_commits,
     render_context,
     repo_slug,
+    validate_public_url,
 )
 from new_threat_model import SECURITY_CONTEXT_FILENAME, build_prompt  # noqa: E402
 
@@ -177,6 +184,86 @@ def test_render_omits_vendored_docs_section_when_none_given():
     text = _render()
     assert "## 6." not in text
     assert "The repository declares no homepage" in text
+
+
+# --- SSRF guard --------------------------------------------------------------
+# The homepage URL is remote-controlled repo metadata and --extra-url values
+# can come from shared batch files, so page fetches must be confined to
+# public http(s) endpoints. Literal-IP URLs need no DNS, so these run offline.
+def test_validate_public_url_blocks_non_http_schemes_and_credentials():
+    for url in ("file:///etc/passwd", "ftp://example.com/x",
+                "gopher://example.com/", "http:///no-host"):
+        with pytest.raises(BlockedUrlError):
+            validate_public_url(url)
+    with pytest.raises(BlockedUrlError):
+        validate_public_url("https://user:secret@example.com/")
+
+
+def test_validate_public_url_blocks_non_public_addresses():
+    for url in ("http://127.0.0.1/", "http://localhost:8080/",
+                "http://169.254.169.254/latest/meta-data/",
+                "http://10.0.0.5/", "http://172.16.3.4/", "http://192.168.1.1/",
+                "http://100.64.0.1/",       # carrier-grade NAT
+                "http://0.0.0.0/", "http://[::1]/", "http://[fd00::1]/",
+                "http://[fe80::1]/", "http://[::ffff:127.0.0.1]/"):
+        with pytest.raises(BlockedUrlError):
+            validate_public_url(url)
+
+
+def test_validate_public_url_resolves_hostnames(monkeypatch):
+    def resolving_to(addr):
+        def fake(host, port, proto=0):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (addr, port))]
+        return fake
+
+    monkeypatch.setattr(fsc.socket, "getaddrinfo", resolving_to("10.9.8.7"))
+    with pytest.raises(BlockedUrlError):
+        validate_public_url("https://intranet.example.com/")
+    monkeypatch.setattr(fsc.socket, "getaddrinfo", resolving_to("93.184.216.34"))
+    validate_public_url("https://example.com/")  # public: no raise
+
+
+def test_validate_public_url_blocks_partially_internal_names(monkeypatch):
+    # One public + one internal A record (classic rebinding setup) → refused.
+    def fake(host, port, proto=0):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))]
+    monkeypatch.setattr(fsc.socket, "getaddrinfo", fake)
+    with pytest.raises(BlockedUrlError):
+        validate_public_url("https://dual.example.com/")
+
+
+def test_redirect_guard_validates_each_hop():
+    guard = fsc._RedirectGuard()
+    req = urllib.request.Request("https://example.com/page")
+    with pytest.raises(BlockedUrlError):
+        guard.redirect_request(req, None, 302, "Found", {},
+                               "http://169.254.169.254/latest/meta-data/")
+    with pytest.raises(BlockedUrlError):  # relative hop resolved against origin
+        guard.redirect_request(req, None, 302, "Found", {}, "file:///etc/passwd")
+
+
+def test_redirect_guard_strips_auth_when_host_changes(monkeypatch):
+    def fake(host, port, proto=0):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+    monkeypatch.setattr(fsc.socket, "getaddrinfo", fake)
+    guard = fsc._RedirectGuard()
+    req = urllib.request.Request("https://api.github.com/repos/x/y",
+                                 headers={"Authorization": "Bearer sekret"})
+    moved = guard.redirect_request(req, None, 302, "Found", {},
+                                   "https://elsewhere.example.com/y")
+    assert "Authorization" not in moved.headers
+    same = guard.redirect_request(req, None, 302, "Found", {},
+                                  "https://api.github.com/repos/x/z")
+    assert same.headers.get("Authorization") == "Bearer sekret"
+
+
+def test_get_page_validates_before_opening():
+    # No network: the block must happen before any connection attempt.
+    with pytest.raises(BlockedUrlError):
+        fsc._Http("").get_page("http://127.0.0.1:9999/anything")
+    with pytest.raises(BlockedUrlError):
+        fsc._Http("").get_page("file:///etc/hostname")
 
 
 # --- issue merging -----------------------------------------------------------
