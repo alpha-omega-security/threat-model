@@ -88,7 +88,14 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from new_threat_model import CLAUDE_STREAM_ARGS, format_claude_event  # noqa: E402
+from new_threat_model import (  # noqa: E402
+    CLAUDE_STREAM_ARGS,
+    ScriptError,
+    format_claude_event,
+    validate_project_name,
+    validate_ref,
+    validate_repo_url,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_GENERATOR = SCRIPT_DIR / "new_threat_model.py"
@@ -188,11 +195,35 @@ def parse_target_line(line: str) -> Target:
                 raise BatchError(f"target line has two refs: {line}")
             ref = value
         elif key in _TARGET_OPTIONS:
+            if key == "subdir":
+                _reject_traversal(value, line)
             extra += [_TARGET_OPTIONS[key], value]
         else:
             allowed = ", ".join(["ref", *_TARGET_OPTIONS])
             raise BatchError(f"unknown target option '{key}' (allowed: {allowed}): {line}")
+
+    # A targets file is frequently authored by someone other than the operator,
+    # so validate here rather than letting a hostile URL, ref, or subdir reach
+    # git argv or the filesystem. The generator re-checks; this just fails the
+    # whole batch up front with the offending line instead of per job.
+    try:
+        url = validate_repo_url(url)
+        ref = validate_ref(ref)
+        validate_project_name(name_from_url(url))
+    except ScriptError as exc:
+        raise BatchError(f"{exc}: {line}") from exc
     return Target(url, ref, extra)
+
+
+def _reject_traversal(subdir: str, line: str) -> None:
+    """Refuse a ``subdir=`` that would climb out of the clone.
+
+    The generator enforces containment against the real clone path; this catches
+    the obvious cases at parse time so a bad targets file fails before any
+    cloning happens.
+    """
+    if Path(subdir).is_absolute() or ".." in Path(subdir).parts:
+        raise BatchError(f"subdir must stay inside the clone: {subdir!r}: {line}")
 
 
 def load_targets(path: Path) -> List[Target]:
