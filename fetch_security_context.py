@@ -534,13 +534,13 @@ class _Http:
     def get_json(self, url: str):
         # API URLs are built in this file against fixed public hosts, so only
         # redirect hops need the guard (they get it via _OPENER).
-        req = urllib.request.Request(url, headers=self._headers())
+        req = urllib.request.Request(url, headers=self._headers(url))
         with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             return json.loads(resp.read().decode("utf-8"))
 
     def post_json(self, url: str, payload: dict):
         body = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=body, headers=self._headers())
+        req = urllib.request.Request(url, data=body, headers=self._headers(url))
         with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             return json.loads(resp.read().decode("utf-8"))
 
@@ -557,11 +557,20 @@ class _Http:
         with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             return resp.read(_PAGE_BYTES)
 
-    def _headers(self) -> dict:
-        h = {"User-Agent": "threat-model-context-fetcher",
-             "Accept": "application/vnd.github+json"}
-        if self.token:
-            h["Authorization"] = f"Bearer {self.token}"
+    def _headers(self, url: str) -> dict:
+        """Per-request headers; the GitHub token is scoped to api.github.com.
+
+        This client also talks to api.osv.dev, which must never see the
+        GITHUB_TOKEN — a bearer token belongs only to the API that issued it.
+        (``urlsplit().hostname`` is lowercased, so the comparison is exact.)
+        """
+        h = {"User-Agent": "threat-model-context-fetcher"}
+        if urllib.parse.urlsplit(url).hostname == "api.github.com":
+            h["Accept"] = "application/vnd.github+json"
+            if self.token:
+                h["Authorization"] = f"Bearer {self.token}"
+        else:
+            h["Accept"] = "application/json"
         return h
 
 

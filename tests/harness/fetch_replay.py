@@ -123,20 +123,30 @@ class _Http:
         self.token = token
 
     def get_json(self, url: str) -> dict:
-        req = urllib.request.Request(url, headers=self._headers())
+        req = urllib.request.Request(url, headers=self._headers(url))
         with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             return json.loads(resp.read().decode("utf-8"))
 
     def get_json_list(self, url: str) -> list:
-        req = urllib.request.Request(url, headers=self._headers())
+        req = urllib.request.Request(url, headers=self._headers(url))
         with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
         return data if isinstance(data, list) else []
 
-    def _headers(self) -> dict:
-        return {"User-Agent": "threat-model-replay-fetcher",
-                "Accept": "application/vnd.github+json",
-                **({"Authorization": f"Bearer {self.token}"} if self.token else {})}
+    def _headers(self, url: str) -> dict:
+        """Per-request headers; the GitHub token is scoped to api.github.com.
+
+        This client also fetches OSV records from api.osv.dev, which must
+        never see the GITHUB_TOKEN.
+        """
+        h = {"User-Agent": "threat-model-replay-fetcher"}
+        if urllib.parse.urlsplit(url).hostname == "api.github.com":
+            h["Accept"] = "application/vnd.github+json"
+            if self.token:
+                h["Authorization"] = f"Bearer {self.token}"
+        else:
+            h["Accept"] = "application/json"
+        return h
 
 
 def _repo_slug(repo_url: str) -> str:

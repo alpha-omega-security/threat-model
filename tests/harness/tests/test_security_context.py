@@ -3,8 +3,8 @@
 Covers the pure, network-free pieces: source classification, alias dedup,
 markdown rendering (including the fence/heading sanitization that keeps a
 hostile issue body from hijacking the file's structure), the symlink-safe
-context write/collect path, and the prompt note that points the agent at the
-vendored file.
+context write/collect path, GitHub-token host scoping, and the prompt note
+that points the agent at the vendored file.
 """
 from __future__ import annotations
 
@@ -325,6 +325,58 @@ def test_html_to_text_skips_scripts_and_styles():
     text = html_to_text(html)
     assert "Audit" in text and "Two findings were reported." in text
     assert "alert" not in text and "color:red" not in text
+
+
+# --- GitHub-token host scoping -----------------------------------------------
+# The client talks to both api.github.com and api.osv.dev; the GITHUB_TOKEN
+# must only ever be sent to the API that issued it.
+def test_auth_header_is_scoped_to_the_github_api_host():
+    http = fsc._Http("sekret")
+    gh = http._headers("https://api.github.com/repos/x/y")
+    assert gh["Authorization"] == "Bearer sekret"
+    assert gh["Accept"] == "application/vnd.github+json"
+    for url in ("https://api.osv.dev/v1/query",
+                "https://api.osv.dev/v1/vulns/CVE-2022-37434",
+                "https://api.github.com.evil.example/x",  # suffix spoof
+                "https://example.com/"):
+        assert "Authorization" not in http._headers(url)
+    # No token -> no auth header anywhere, including GitHub.
+    assert "Authorization" not in fsc._Http("")._headers("https://api.github.com/x")
+
+
+def test_osv_requests_carry_no_token_end_to_end(monkeypatch):
+    """The Request objects actually opened must show the scoping, not just _headers."""
+    captured = []
+
+    class _Resp:
+        def read(self, *a):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(fsc._OPENER, "open",
+                        lambda req, timeout=30: captured.append(req) or _Resp())
+    http = fsc._Http("sekret")
+    http.get_json("https://api.osv.dev/v1/vulns/CVE-2022-37434")
+    http.post_json("https://api.osv.dev/v1/query", {"package": {"ecosystem": "npm", "name": "x"}})
+    http.get_json("https://api.github.com/repos/x/y")
+    assert len(captured) == 3
+    assert not captured[0].has_header("Authorization")
+    assert not captured[1].has_header("Authorization")
+    assert captured[2].get_header("Authorization") == "Bearer sekret"
+
+
+def test_replay_fetcher_scopes_its_token_the_same_way():
+    sys.path.insert(0, str(_REPO / "tests" / "harness"))
+    import fetch_replay
+
+    http = fetch_replay._Http("sekret")
+    assert http._headers("https://api.github.com/repos/x/y")["Authorization"] == "Bearer sekret"
+    assert "Authorization" not in http._headers("https://api.osv.dev/v1/vulns/CVE-1")
 
 
 # --- symlink-safe context write and collection --------------------------------
