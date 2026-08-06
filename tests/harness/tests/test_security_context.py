@@ -2,14 +2,16 @@
 
 Covers the pure, network-free pieces: source classification, alias dedup,
 markdown rendering (including the fence/heading sanitization that keeps a
-hostile issue body from hijacking the file's structure), and the prompt note
-that points the agent at the vendored file.
+hostile issue body from hijacking the file's structure), the symlink-safe
+context write/collect path, and the prompt note that points the agent at the
+vendored file.
 """
 from __future__ import annotations
 
 import socket
 import sys
 import urllib.request
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,7 @@ _REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO))
 
 import fetch_security_context as fsc  # noqa: E402
+import new_threat_model as ntm  # noqa: E402
 from fetch_security_context import (  # noqa: E402
     BlockedUrlError,
     dedupe_vulns,
@@ -29,8 +32,16 @@ from fetch_security_context import (  # noqa: E402
     render_context,
     repo_slug,
     validate_public_url,
+    write_context_file,
 )
 from new_threat_model import SECURITY_CONTEXT_FILENAME, build_prompt  # noqa: E402
+
+
+def _symlink_or_skip(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):  # e.g. Windows without the privilege
+        pytest.skip("symlinks not available on this platform")
 
 
 # --- repo_slug ---------------------------------------------------------------
@@ -314,6 +325,134 @@ def test_html_to_text_skips_scripts_and_styles():
     text = html_to_text(html)
     assert "Audit" in text and "Two findings were reported." in text
     assert "alert" not in text and "color:red" not in text
+
+
+# --- symlink-safe context write and collection --------------------------------
+# The context file's destination sits inside a freshly cloned, untrusted repo.
+# A repo shipping security-context.md as a symlink must not get an arbitrary
+# user-writable file overwritten, and only runner-created context may be
+# collected as an artifact.
+def test_write_context_file_refuses_a_symlink_destination(tmp_path):
+    victim = tmp_path / "victim.txt"
+    victim.write_text("precious", encoding="utf-8")
+    dest = tmp_path / SECURITY_CONTEXT_FILENAME
+    _symlink_or_skip(dest, victim)
+    with pytest.raises(ValueError, match="symlink"):
+        write_context_file(dest, "attacker content")
+    assert victim.read_text(encoding="utf-8") == "precious"
+
+
+def test_write_context_file_writes_atomically_and_leaves_no_temp(tmp_path):
+    dest = tmp_path / SECURITY_CONTEXT_FILENAME
+    write_context_file(dest, "first")
+    write_context_file(dest, "second")  # overwriting a regular file is fine
+    assert dest.read_text(encoding="utf-8") == "second"
+    assert [p.name for p in tmp_path.iterdir()] == [SECURITY_CONTEXT_FILENAME]
+
+
+def test_build_context_refuses_a_symlinked_out_path(tmp_path, monkeypatch):
+    for name in ("fetch_advisories", "fetch_security_issues", "fetch_rulings"):
+        monkeypatch.setattr(fsc, name, lambda *a, **k: [])
+    monkeypatch.setattr(fsc, "fetch_osv_records", lambda *a, **k: [])
+    monkeypatch.setattr(fsc, "fetch_homepage_refs", lambda *a, **k: ("", []))
+    monkeypatch.setattr(fsc, "fetch_extra_docs", lambda *a, **k: [])
+    victim = tmp_path / "victim.txt"
+    victim.write_text("precious", encoding="utf-8")
+    out = tmp_path / SECURITY_CONTEXT_FILENAME
+    _symlink_or_skip(out, victim)
+    with pytest.raises(ValueError, match="symlink"):
+        fsc.build_context("https://github.com/x/y", out)
+    assert victim.read_text(encoding="utf-8") == "precious"
+
+
+def test_prepare_replaces_repo_shipped_symlink_without_following_it(tmp_path):
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    victim = tmp_path / "victim.txt"
+    victim.write_text("precious", encoding="utf-8")
+    _symlink_or_skip(clone / SECURITY_CONTEXT_FILENAME, victim)
+    prebuilt = tmp_path / "prebuilt.md"
+    prebuilt.write_text("vendored history", encoding="utf-8")
+
+    args = Namespace(fetch_security_context=False)
+    ok = ntm._prepare_security_context(ntm.Console(color=False), args, prebuilt, clone)
+    assert ok is True
+    dest = clone / SECURITY_CONTEXT_FILENAME
+    assert not dest.is_symlink()
+    assert dest.read_text(encoding="utf-8") == "vendored history"
+    assert victim.read_text(encoding="utf-8") == "precious"
+
+
+def test_prepare_replaces_repo_shipped_regular_file(tmp_path):
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    (clone / SECURITY_CONTEXT_FILENAME).write_text("repo-planted", encoding="utf-8")
+    prebuilt = tmp_path / "prebuilt.md"
+    prebuilt.write_text("vendored history", encoding="utf-8")
+
+    args = Namespace(fetch_security_context=False)
+    assert ntm._prepare_security_context(ntm.Console(color=False), args, prebuilt, clone)
+    assert (clone / SECURITY_CONTEXT_FILENAME).read_text(encoding="utf-8") == "vendored history"
+
+
+def test_fetch_path_clears_repo_shipped_symlink_before_writing(tmp_path, monkeypatch):
+    clone = tmp_path / "clone"
+    clone.mkdir()
+    victim = tmp_path / "victim.txt"
+    victim.write_text("precious", encoding="utf-8")
+    _symlink_or_skip(clone / SECURITY_CONTEXT_FILENAME, victim)
+
+    def fake_build_context(repo, out_path, **kwargs):
+        write_context_file(out_path, "fetched history")
+        return {"out": str(out_path), "advisories": 0, "osv_records": 0,
+                "security_issues": 0, "rulings": 0, "homepage_refs": 0,
+                "extra_docs": 0, "notes": []}
+
+    monkeypatch.setattr(fsc, "build_context", fake_build_context)
+    args = Namespace(fetch_security_context=True, repo="https://github.com/x/y",
+                     osv_package="", context_url=[])
+    ok = ntm._prepare_security_context(ntm.Console(color=False), args, None, clone)
+    assert ok is True
+    dest = clone / SECURITY_CONTEXT_FILENAME
+    assert not dest.is_symlink()
+    assert dest.read_text(encoding="utf-8") == "fetched history"
+    assert victim.read_text(encoding="utf-8") == "precious"
+
+
+def _work_dir_with_model(tmp_path: Path) -> Path:
+    work = tmp_path / "work"
+    (work / "docs").mkdir(parents=True)
+    (work / "docs" / "threat-model.md").write_text("# model", encoding="utf-8")
+    return work
+
+
+def test_collect_skips_context_the_runner_did_not_create(tmp_path):
+    work = _work_dir_with_model(tmp_path)
+    (work / SECURITY_CONTEXT_FILENAME).write_text("repo-planted", encoding="utf-8")
+    out = tmp_path / "out"
+    ntm._collect_artifacts(ntm.Console(color=False), work, out, None, have_context=False)
+    assert not (out / SECURITY_CONTEXT_FILENAME).exists()
+
+
+def test_collect_copies_runner_created_context(tmp_path):
+    work = _work_dir_with_model(tmp_path)
+    (work / SECURITY_CONTEXT_FILENAME).write_text("vendored history", encoding="utf-8")
+    out = tmp_path / "out"
+    ntm._collect_artifacts(ntm.Console(color=False), work, out, None, have_context=True)
+    assert (out / SECURITY_CONTEXT_FILENAME).read_text(encoding="utf-8") == "vendored history"
+
+
+def test_collect_refuses_context_swapped_for_a_symlink(tmp_path):
+    # Even runner-created context is re-checked at collect time: the agent runs
+    # repo-influenced code in between, which could swap in a symlink to make
+    # the collector read an arbitrary user file into the output tree.
+    work = _work_dir_with_model(tmp_path)
+    secret = tmp_path / "secret.txt"
+    secret.write_text("hunter2", encoding="utf-8")
+    _symlink_or_skip(work / SECURITY_CONTEXT_FILENAME, secret)
+    out = tmp_path / "out"
+    ntm._collect_artifacts(ntm.Console(color=False), work, out, None, have_context=True)
+    assert not (out / SECURITY_CONTEXT_FILENAME).exists()
 
 
 # --- runner wiring -----------------------------------------------------------

@@ -892,7 +892,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
 
     # --- Collect artifacts into the output directory ---
     have_model, rel_model, have_sidecar, have_predictions = _collect_artifacts(
-        console, work_dir, out_dir, corpus
+        console, work_dir, out_dir, corpus, have_context=have_context
     )
 
     # --- Cleanup and summary ---
@@ -915,6 +915,40 @@ def run(args: argparse.Namespace, console: Console) -> int:
     return 0
 
 
+def _remove_repo_supplied_context(console: Console, dest: Path) -> None:
+    """Delete a repository-shipped file squatting on the context filename.
+
+    ``is_symlink`` is checked besides ``exists`` because ``exists`` follows
+    links: a dangling symlink would otherwise survive to redirect the write.
+    ``unlink`` removes the link itself, never what it points at.
+    """
+    if dest.is_symlink() or dest.exists():
+        kind = "a symlink" if dest.is_symlink() else "a file"
+        console.warn(
+            f"clone already contains {dest.name} ({kind}, repository-controlled); removing it")
+        dest.unlink()
+
+
+def _install_context_file(src: Path, dest: Path) -> None:
+    """Copy ``src`` to ``dest`` via a same-directory temp file + ``os.replace``.
+
+    ``dest`` sits inside the untrusted clone, so it must never be opened for
+    writing in place — ``os.replace`` renames over whatever is there instead of
+    following it.
+    """
+    fd, tmp_name = tempfile.mkstemp(prefix=dest.name + ".", dir=str(dest.parent))
+    os.close(fd)
+    try:
+        shutil.copy2(src, tmp_name)
+        os.replace(tmp_name, dest)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
 def _prepare_security_context(
     console: Console,
     args: argparse.Namespace,
@@ -926,14 +960,23 @@ def _prepare_security_context(
     A prebuilt file is copied verbatim; ``--fetch-security-context`` builds one
     live via fetch_security_context.py. Fetch failures warn and return False —
     external history is an enrichment, never a reason to abort generation.
+
+    ``dest`` is inside the just-cloned target repository, so anything already
+    at that name is repository-controlled. A repo shipping its own
+    ``security-context.md`` — worst case a symlink pointing at a user-writable
+    file outside the clone, which a follow-the-symlink write would overwrite —
+    is removed before the runner writes its own, and the write itself goes
+    through a temp file + ``os.replace`` (see ``_install_context_file`` /
+    ``fetch_security_context.write_context_file``).
     """
+    if prebuilt_context is None and not args.fetch_security_context:
+        return False
     dest = work_dir / SECURITY_CONTEXT_FILENAME
+    _remove_repo_supplied_context(console, dest)
     if prebuilt_context is not None:
         console.step(f"Copying security context {prebuilt_context} -> {dest}")
-        shutil.copy2(prebuilt_context, dest)
+        _install_context_file(prebuilt_context, dest)
         return True
-    if not args.fetch_security_context:
-        return False
 
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
@@ -1016,7 +1059,8 @@ def _repair_loop(
 
 
 def _collect_artifacts(
-    console: Console, work_dir: Path, out_dir: Path, corpus: Optional[Path]
+    console: Console, work_dir: Path, out_dir: Path, corpus: Optional[Path],
+    have_context: bool = False,
 ) -> Tuple[bool, Optional[str], bool, bool]:
     """Copy the model, sidecar, and (optional) predictions from work_dir into out_dir.
 
@@ -1047,8 +1091,18 @@ def _collect_artifacts(
     have_sidecar = copy_artifact(sidecar_src, out_dir / "threat-model.yaml")
 
     # Keep the vendored security context with the artifacts so a reviewer can
-    # see exactly which external history informed the run.
-    copy_artifact(work_dir / SECURITY_CONTEXT_FILENAME, out_dir / SECURITY_CONTEXT_FILENAME)
+    # see exactly which external history informed the run — but only when this
+    # runner created it. Without that gate a repo-shipped security-context.md
+    # would be collected as though it were vendored public record, and a
+    # symlink swapped in during the agent run would make copy2 read whatever
+    # user file it points at into the output tree.
+    if have_context:
+        ctx_src = work_dir / SECURITY_CONTEXT_FILENAME
+        if ctx_src.is_symlink():
+            console.warn(
+                f"{SECURITY_CONTEXT_FILENAME} became a symlink after the run; not collecting it")
+        else:
+            copy_artifact(ctx_src, out_dir / SECURITY_CONTEXT_FILENAME)
 
     have_predictions = False
     if corpus:

@@ -52,6 +52,7 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -99,6 +100,32 @@ def repo_slug(repo_url: str) -> str:
         raise ValueError(
             f"expected a repository URL of the form host/owner/name, got: {repo_url}")
     return "/".join(urllib.parse.quote(p, safe="") for p in parts)
+
+
+def write_context_file(out_path: Path, text: str) -> None:
+    """Write ``text`` to ``out_path`` without ever following a symlink there.
+
+    ``out_path`` typically sits inside a freshly cloned target repository, so
+    anything already at that name is repository-controlled: were it a symlink,
+    a plain ``write_text`` would follow it and overwrite whatever user-writable
+    file it points at. A symlink destination is refused outright, and the
+    content lands via a same-directory temp file plus ``os.replace``, which
+    renames over the destination instead of opening it for writing.
+    """
+    if out_path.is_symlink():
+        raise ValueError(f"refusing to write through a symlink: {out_path}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=out_path.name + ".", dir=str(out_path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def osv_fix_commits(osv: dict) -> list:
@@ -711,8 +738,7 @@ def build_context(repo_url: str, out_path: Path, token: str = "",
     text = render_context(repo_url, fetched_at, advisories, vulns,
                           security_issues, rulings, notes, homepage=homepage,
                           homepage_refs=homepage_refs, extra_docs=extra_docs)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(text, encoding="utf-8")
+    write_context_file(out_path, text)
     return {"out": str(out_path), "advisories": len(advisories),
             "osv_records": len(vulns), "security_issues": len(security_issues),
             "rulings": len(rulings), "homepage_refs": len(homepage_refs),
