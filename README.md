@@ -70,6 +70,7 @@ python new_threat_model.py --agent claude --repo https://github.com/owner/repo `
 
 It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py --help` for all options. This is the same adapter the evaluation harness drives; see [`tests/README.md`](./tests/README.md) for the full generate → validate → score pipeline.
 
+The headless agent runs use broad internal permission flags so they can inspect a checkout and write the model without stopping for approval. To keep those permissions inside an OS-enforced filesystem boundary, follow the tested [`nono` sandbox guide](./docs/nono.md). The guide covers Claude, Copilot, batch runs, network limitations, and commands for checking the effective policy before starting an agent.
 
 ## What you get
 
