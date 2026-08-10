@@ -74,6 +74,29 @@ Inputs are validated before they reach the filesystem or `git`, because a batch 
 
 The agent still runs with `--allow-all-tools` / `--dangerously-skip-permissions` in the clone, so continue to treat generation as running untrusted code: prefer a container or throwaway user for repositories you do not trust.
 
+#### Sandboxing a run with nono
+
+[nono](https://nono.sh) is a kernel-enforced sandbox CLI (Linux/macOS/Windows; `curl -fsSL https://nono.sh/install.sh | sh` or `brew install nono`) that makes the container advice cheap to follow. Wrapping the runner in `nono run` covers the whole process tree — `git`, the agent CLI, and anything the agent chooses to execute inside the clone — with default-deny filesystem writes and a default-deny network allowlist, with no changes to the scripts:
+
+```bash
+nono run \
+    --read . --allow ./work --allow ./out \
+    --allow ~/.claude \
+    --allow-domain 'https://github.com/madler/**' \
+    --allow-domain api.anthropic.com \
+    -- python new_threat_model.py --agent claude \
+       --repo https://github.com/madler/zlib \
+       --work-root ./work --out ./out/zlib
+```
+
+The flags map onto what a generation actually needs:
+
+- Pass `--work-root ./work` so the clone lands somewhere you can name; by default clones go to a temp subfolder, which would force a broad `--allow` on the system temp directory. `--read .` lets the runner load the skills from this checkout, and `--allow ./out` receives the artifacts.
+- `--allow ~/.claude` is there because the Claude CLI reads its credentials and writes session state under it (for `--agent copilot`, allow the Copilot CLI's state directory, e.g. `~/.copilot`, and swap `api.anthropic.com` for `api.githubcopilot.com`). This is the residual exposure — the agent's own credential lives inside the sandbox — so keep the domain list tight: path-scoping the clone host to the target (`https://github.com/madler/**`) stops the allowlist from doubling as an exfiltration channel, and nono's environment-variable filtering can keep `GITHUB_TOKEN` and other secrets out of the child entirely.
+- Use an `https://` repo URL under nono. `--allow-domain` is an HTTP(S) proxy allowlist, not a raw TCP allow, so `ssh://` / `git@` clones will not traverse it.
+- With `--fetch-security-context` (or when running `fetch_security_context.py` directly), also allow `api.github.com` and `api.osv.dev`, plus the domains of the project homepage and any `--extra-url` pages. Anything unlisted — including the agent CLIs' telemetry — fails closed, and nono blocks cloud metadata endpoints (`169.254.169.254` and friends) unconditionally, backstopping the script's own SSRF guard.
+- To find a path or domain you missed, do one interactive run in nono's supervised mode and approve what it asks about, or probe the assembled flags with `nono why --path <p>` / `nono why --host <h>`. Once a target runs clean the same command is suitable for headless or CI use, and the identical wrapper goes around `batch_threat_models.py` to sandbox a whole batch in one policy.
+
 ### Vendor external security history (`fetch_security_context.py`)
 
 By default a generation run works only from what is in the clone; whether the agent also consults advisories or the issue tracker depends on its web tools. [`fetch_security_context.py`](./fetch_security_context.py) makes that input deterministic: it gathers the repository's published GitHub security advisories, the matching OSV.dev records (with fixing commits), security-related issues (labeled **or** mentioning security-type terms — repos like zlib use no labels at all), issues maintainers closed as not-planned/wontfix/invalid, and security/audit links discovered on the project homepage (how an external audit report linked from zlib.net gets found) into a single `security-context.md`. `--extra-url` additionally vendors the text of named pages, e.g. a commissioned audit report. The recon phase mines that file as maintainer-authored or maintainer-acknowledged public record — citing the original advisory/issue URLs as `(documented, <url>)` — and the backtest phase seeds its corpus from the vulnerability history. Per the leave-out list, none of the CVE history itself enters the published document.
