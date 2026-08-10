@@ -1,6 +1,6 @@
 {
   "defaults": {
-    "agent": "copilot",
+    "agent": "claude",
     "triage_policy": "strict",
     "extra_args": ["--fetch-security-context"]
   },
@@ -9,10 +9,15 @@
       "name": "opus-5-high",
       "model": "claude-opus-5",
       "effort": "high"
+    },
+    {
+      "name": "opus-5-medium",
+      "model": "claude-opus-5",
+      "effort": "medium"
     }
   ],
   "compare": {
-    "agent": "copilot",
+    "agent": "claude",
     "model": "claude-opus-5"
   }
 }
