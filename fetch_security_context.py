@@ -531,10 +531,13 @@ class _RedirectGuard(urllib.request.HTTPRedirectHandler):
         validate_public_url(urllib.parse.urljoin(req.full_url, newurl))
         new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
         if new_req is not None:
-            old_host = urllib.parse.urlsplit(req.full_url).hostname
-            new_host = urllib.parse.urlsplit(new_req.full_url).hostname
-            if old_host != new_host:
-                new_req.headers.pop("Authorization", None)
+            old = urllib.parse.urlsplit(req.full_url)
+            new = urllib.parse.urlsplit(new_req.full_url)
+            old_port = old.port or (443 if old.scheme == "https" else 80)
+            new_port = new.port or (443 if new.scheme == "https" else 80)
+            if (old.scheme, old.hostname, old_port) != \
+                    (new.scheme, new.hostname, new_port):
+                new_req.remove_header("Authorization")
         return new_req
 
 
