@@ -87,6 +87,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # prompt and the recon skill both name this file, so keep them in sync.
 SECURITY_CONTEXT_FILENAME = "security-context.md"
 
+# Where phase 3.6 writes its routing table inside the clone. Producer-side: it
+# carries one advisory/issue URL per row, which the leave-out list keeps out of
+# the published model, so it lives in a dot-directory rather than beside the
+# deliverable where a maintainer's `git add -A` would publish it.
+BACKTEST_TABLE_RELPATH = ".threat-model/backtest.md"
+
 
 class ScriptError(Exception):
     """A fatal, user-facing error that aborts the run with a message."""
@@ -447,8 +453,8 @@ def build_subdir_note(subdir: str) -> str:
         "within a larger repository (often a monorepo). Model ONLY the package in that\n"
         "subdirectory. You may read the rest of the repository for context, but the\n"
         "contract, entry points, and artifacts must be scoped to this package. Write\n"
-        "docs/threat-model.md and threat-model.yaml INSIDE that subdirectory (i.e. the\n"
-        "current working directory), not at the repository root."
+        "docs/threat-model.md, threat-model.yaml, and threat-model.json INSIDE that\n"
+        "subdirectory (i.e. the current working directory), not at the repository root."
     )
 
 
@@ -530,17 +536,42 @@ and its downstream users — assumptions, guarantees, disclaimed properties, and
 known misuses. It is NOT an audit, a pentest, a CVE list, or a bug hunt. Do not
 modify the project's source code.
 
-Produce the two-artifact deliverable the skill specifies:
+Produce the three-artifact deliverable the skill specifies, plus the
+producer-side backtest table:
   1. docs/threat-model.md  — the prose model, written to the canonical section
       structure, with every non-trivial claim carrying a source-labeled
       (documented, source) / dated (maintainer, YYYY-MM) / conservative-default
       (assumption, QN) / open (inferred, QN) provenance tag, a draft-confidence
-      count, a declared triage policy, a seven-step triager quick-start in the
+      count, a declared triage policy, a triager quick-start in the
       header, a complete contract-dimension matrix, the closed disposition
       table in 1.17, and section 1.19.
   2. threat-model.yaml      — the machine-readable sidecar (schema
       threat-model-sidecar/v2) derived from and SHA-256-bound to the prose, in
       the repo root.
+  3. threat-model.json      — a flat JSON export for external consumers, in the
+      repo root beside threat-model.yaml. It MUST validate against the
+      threat-model report schema (schema.json, spec_version 1) and is derived
+      from the sidecar per the mapping in the threat-model skill's
+      json-report-schema.md reference. Record the repository URL, the exact
+      commit (git rev-parse HEAD in the modeled tree), and the date. Collapse
+      provenance documented+maintainer -> documented and inferred+assumption ->
+      inferred, never the other direction.
+  4. .threat-model/backtest.md — the phase-3.6 routing table (one row per
+      corpus item: id, source URL or "synthesized", component, cluster,
+      dimension, disposition, licensing section, historical outcome,
+      pass/fail). Producer-side evidence, kept out of docs/ deliberately.
+      Run phase 3.6 before publishing: route a corpus against the draft, record
+      each item's actual historical outcome where one exists, and replace the
+      drafting placeholder in the section 1.1 backtest note with real figures
+      (corpus and cluster counts, how many items are real versus synthesized,
+      the disposition histogram, and how many historically-fixed items still
+      route VALID or escalate). Closing an item the project actually fixed is a
+      blocking failure -- narrow the licensing claim rather than widening a
+      disclaimer. Where no historical record is reachable, write the
+      exact sentence "no historical corpus was available; the backtest routed N synthesized cases only"
+      instead of presenting synthesized cases as history. Close section 1.11
+      with 2-4 de-identified worked routing examples, at least one routing
+      VALID, carrying no CVE IDs, reporter names, or dates.
 
 Write the prose so a human can read it: short, direct sentences carrying one
 idea each, plain words ("uses" not "utilizes"), active voice with a real subject,
@@ -555,21 +586,23 @@ SECURITY*, source). Where a claim cannot be confirmed from the project's own
 materials, first try to cite a maintainer-authored source; a fact stated in the
 README, headers, or API docs is (documented, source). Record a demonstrably-
 absent guarantee (no thread-safety, no resource bound, no failure atomicity) as
-a (documented) section 1.12 disclaimer rather than an open question. Only where
+a documented section 1.12 disclaimer rather than an open question. Only where
 you must reason past what is verifiable, tag (assumption, QN) for a conservative
 default you would act on, or (inferred, QN) for a genuinely open question, and
 record a matching item in section 1.18 using the same QN rather than fabricating
 a maintainer position.
 
 Declare the triage policy '{triage_policy}' in the section 1.1 header and set the
-sidecar's top-level triage_policy field to match. Under 'strict' an (assumption)
-escalates like (inferred) and never closes a report; under 'relaxed' an
-(assumption) may license only the low-blast-radius closes (trusted-input,
+sidecar's top-level triage_policy field to match. Under 'strict' an assumption
+escalates like an inferred claim and never closes a report; under 'relaxed' an
+assumption may license only the low-blast-radius closes (trusted-input,
 adversary-not-in-scope, unsupported-component, non-default-build, and a
 non-security-critical property-disclaimed) as a provisional, challengeable
-close. Under BOTH policies an (assumption) never licenses KNOWN-NON-FINDING, a
-security-critical property-disclaimed, or dependency-contract, and (inferred)
-never closes.{context_note}{corpus_instruction}{effort_note}
+close. Under BOTH policies an assumption never licenses KNOWN-NON-FINDING, a
+security-critical property-disclaimed, or dependency-contract, and an inferred
+claim never closes. Naming a provenance kind in prose, as this paragraph does,
+is never written in parentheses: a parenthesized kind is a claim tag and must
+carry its source, date, or QN.{context_note}{corpus_instruction}{effort_note}
 
 When you are done, briefly list the files you created."""
 
@@ -592,24 +625,47 @@ def build_prompt(
 def build_repair_prompt(validator_output: str) -> str:
     return f"""The threat model you produced in the current directory has validation errors that
 must be fixed. Below is the deterministic validator's report of
-docs/threat-model.md and threat-model.yaml:
+docs/threat-model.md and its machine-readable companions (threat-model.yaml,
+threat-model.json):
 
 {validator_output}
 
 Fix ONLY these problems, editing in place, without changing anything the
 validator did not flag and without touching the project's source code:
   - Preserve the canonical section structure and all correct existing content.
+  - ONE EXCEPTION to "change nothing unflagged": if a backtest check failed, you
+    must actually run phase 3.6, and a real backtest legitimately edits sections
+    the validator did not name -- narrowed §1.12 disclaimers or §1.3 scope
+    lines, new §1.15 candidates, new §1.18 questions, and the §1.11 worked
+    routing examples. Those edits are authorized. Fabricating a backtest note to
+    satisfy the check is not.
   - If a §1.1 draft-confidence count disagrees with the body, RECOUNT the
-    (documented) / (maintainer) / (inferred) tags and correct the header number.
+    documented / maintainer / inferred tags and correct the header number.
+    A parenthesized kind anywhere in the prose counts as a tag, so a kind named
+    as vocabulary must not be written in parentheses.
   - Every provenance tag must carry its detail: (documented, source),
     (maintainer, YYYY-MM), (assumption, QN), or (inferred, QN). Fill any bare tag.
   - Every (inferred, QN) and (assumption, QN) must have a matching QN item in
     §1.18; add the missing question or fix the reference so they resolve.
-  - §1.1 must contain the seven-step triager quick-start naming the contract
+  - If a backtest check failed, run phase 3.6 with the threat-model-backtest
+    skill, seeding the corpus from ./security-context.md when it exists, and
+    write the routing table to .threat-model/backtest.md. Replace the §1.1 note
+    with real figures: corpus and cluster counts, how many items carry a real
+    historical outcome versus were synthesized, the disposition histogram, and
+    how many historically-fixed items the model would have closed (target zero).
+    If no historical record is reachable, write that exact sentence:
+    "no historical corpus was available; the backtest routed N synthesized
+    cases only". Deleting the note is not a fix, and neither is asserting the
+    backtest happened without reporting what it found.
+  - §1.1 must contain the triager quick-start naming the contract
     dimensions, the disposition PRECEDENCE, and §1.17.
   - After editing docs/threat-model.md, REGENERATE threat-model.yaml so its
     prose_version SHA-256 matches the edited prose exactly, and correct any bad
     component provenance the validator named.
+  - Whenever the prose or the sidecar changes, REGENERATE threat-model.json from
+    the sidecar as well and keep it valid against the report schema
+    (schema.json). Never upgrade provenance: a claim that is inferred or
+    assumption in the sidecar must not appear as documented in the JSON.
 
 Consult the threat-model skill's output-structure reference if unsure. When done,
 briefly list what you changed."""
@@ -729,11 +785,28 @@ def clone_repository(console: Console, repo: str, ref: str, clone_dir: Path) -> 
 # Validation
 # ---------------------------------------------------------------------------
 def run_validator(
-    python_path: str, validator_path: Path, model_path: Path, sidecar_path: Optional[Path]
+    python_path: str, validator_path: Path, model_path: Path,
+    sidecar_path: Optional[Path], source_root: Optional[Path] = None,
+    json_report_path: Optional[Path] = None,
 ) -> Tuple[bool, str]:
+    """Run the deterministic validator, resolving citations when we can.
+
+    ``source_root`` is the clone the model was written from. Passing it is what
+    lets the validator check a ``file:line`` citation against the actual line
+    instead of only checking that it is shaped like one -- and the runner is the
+    one context that always has the tree, so it always passes it.
+
+    ``json_report_path`` is passed through as ``--json-report`` only when the
+    file exists: the JSON export is a newer artifact, and a run that did not
+    produce one should not fail on a missing-file error.
+    """
     cmd = [python_path, str(validator_path), str(model_path)]
     if sidecar_path and sidecar_path.exists():
         cmd.append(str(sidecar_path))
+    if source_root is not None:
+        cmd += ["--source-root", str(source_root)]
+    if json_report_path and json_report_path.exists():
+        cmd += ["--json-report", str(json_report_path)]
     code, output = capture_command(cmd)
     return code == 0, output
 
@@ -893,7 +966,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
     _repair_loop(console, args, work_dir, validator_path, python_available, invoke_agent)
 
     # --- Collect artifacts into the output directory ---
-    have_model, rel_model, have_sidecar, have_predictions = _collect_artifacts(
+    have_model, rel_model, have_sidecar, have_json, have_predictions = _collect_artifacts(
         console, work_dir, out_dir, corpus, have_context=have_context
     )
 
@@ -908,6 +981,7 @@ def run(args: argparse.Namespace, console: Console) -> int:
     console.step(f"Done — {project} @ {commit}")
     console.info(f"  threat-model.md   : {f'ok ({rel_model})' if have_model else 'MISSING'}")
     console.info(f"  threat-model.yaml : {'ok' if have_sidecar else 'missing'}")
+    console.info(f"  threat-model.json : {'ok' if have_json else 'missing'}")
     if corpus:
         console.info(f"  predictions.jsonl : {'ok' if have_predictions else 'missing'}")
     console.info(f"  output dir        : {out_dir}")
@@ -1055,11 +1129,14 @@ def _repair_loop(
     assert validator_path is not None
     model_path = find_in_scope(work_dir, Path("docs") / "threat-model.md", "threat-model.md")
     sidecar_path = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
+    json_path = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
     if not model_path.exists():
         console.warn("no threat-model.md to validate; skipping repair")
         return
 
-    ok, output = run_validator(args.python_path, validator_path, model_path, sidecar_path)
+    ok, output = run_validator(args.python_path, validator_path, model_path,
+                               sidecar_path, source_root=work_dir,
+                               json_report_path=json_path)
     attempt = 0
     while not ok and attempt < args.max_repair_attempts:
         attempt += 1
@@ -1070,7 +1147,10 @@ def _repair_loop(
             break
         model_path = find_in_scope(work_dir, Path("docs") / "threat-model.md", "threat-model.md")
         sidecar_path = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
-        ok, output = run_validator(args.python_path, validator_path, model_path, sidecar_path)
+        json_path = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
+        ok, output = run_validator(args.python_path, validator_path, model_path,
+                               sidecar_path, source_root=work_dir,
+                               json_report_path=json_path)
 
     if ok:
         suffix = f" after {attempt} repair pass(es)" if attempt else ""
@@ -1082,8 +1162,9 @@ def _repair_loop(
 def _collect_artifacts(
     console: Console, work_dir: Path, out_dir: Path, corpus: Optional[Path],
     have_context: bool = False,
-) -> Tuple[bool, Optional[str], bool, bool]:
-    """Copy the model, sidecar, and (optional) predictions from work_dir into out_dir.
+) -> Tuple[bool, Optional[str], bool, bool, bool]:
+    """Copy the model, sidecar, JSON report, and (optional) predictions from
+    work_dir into out_dir.
 
     Fallback searches stay within work_dir so a monorepo run never grabs a
     sibling package's file.
@@ -1111,6 +1192,12 @@ def _collect_artifacts(
     sidecar_src = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
     have_sidecar = copy_artifact(sidecar_src, out_dir / "threat-model.yaml")
 
+    # The schema.json-conforming export. Collected exactly like the sidecar:
+    # canonical spot is the repo root (the subdir for scoped runs), with the
+    # same in-scope fallback search.
+    json_src = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
+    have_json = copy_artifact(json_src, out_dir / "threat-model.json")
+
     # Keep the vendored security context with the artifacts so a reviewer can
     # see exactly which external history informed the run — but only when this
     # runner created it. Without that gate a repo-shipped security-context.md
@@ -1125,11 +1212,25 @@ def _collect_artifacts(
         else:
             copy_artifact(ctx_src, out_dir / SECURITY_CONTEXT_FILENAME)
 
+    # The phase-3.6 routing table. It is producer-side evidence, not part of the
+    # published deliverable, but it is the only artifact that lets a reviewer
+    # check the §1.1 backtest note against anything -- and the clone is deleted
+    # at the end of the run, so uncollected means gone. Same symlink guard as
+    # the security context.
+    backtest_src = work_dir / BACKTEST_TABLE_RELPATH
+    if backtest_src.is_symlink():
+        console.warn(
+            f"{BACKTEST_TABLE_RELPATH} is a symlink; not collecting it")
+    elif not copy_artifact(backtest_src, out_dir / "threat-model-backtest.md"):
+        console.warn(
+            f"no {BACKTEST_TABLE_RELPATH} produced; the §1.1 backtest note "
+            "cannot be checked against a routing table")
+
     have_predictions = False
     if corpus:
         have_predictions = copy_artifact(work_dir / "predictions.jsonl", out_dir / "predictions.jsonl")
 
-    return have_model, rel_model, have_sidecar, have_predictions
+    return have_model, rel_model, have_sidecar, have_json, have_predictions
 
 
 def _print_dry_run(

@@ -53,6 +53,7 @@ Output tree
         <config>/
           docs/threat-model.md
           threat-model.yaml
+          threat-model.json
           <agent>.log                   # the agent transcript
           run.log                       # the generator's stdout
           status.json                   # per-job outcome
@@ -428,6 +429,7 @@ def run_job(
 
     model_path = jdir / "docs" / "threat-model.md"
     sidecar_path = jdir / "threat-model.yaml"
+    json_path = jdir / "threat-model.json"
     have_model = model_path.exists()
 
     validated: Optional[bool] = None
@@ -435,6 +437,8 @@ def run_job(
         vcmd = [args.python, str(args.validator), str(model_path)]
         if sidecar_path.exists():
             vcmd.append(str(sidecar_path))
+        if json_path.exists():
+            vcmd.extend(["--json-report", str(json_path)])
         validated = run_subprocess(vcmd, cwd=SCRIPT_DIR, log_path=jdir / "validate.log", echo=False) == 0
 
     if not have_model:
@@ -571,11 +575,14 @@ def _cell(out_dir: Path, summary_dir: Path, target: Target, config: Config) -> s
         return f"{mark}{link}"
     model_path = jdir / "docs" / "threat-model.md"
     yaml_path = jdir / "threat-model.yaml"
+    json_path = jdir / "threat-model.json"
     parts = [mark]
     if model_path.exists():
         parts.append(f"[md]({_rel(model_path, summary_dir)})")
     if yaml_path.exists():
         parts.append(f"[yaml]({_rel(yaml_path, summary_dir)})")
+    if json_path.exists():
+        parts.append(f"[json]({_rel(json_path, summary_dir)})")
     conf = rec.get("confidence")
     cell = parts[0] + " " + " · ".join(parts[1:]) if len(parts) > 1 else parts[0]
     if conf:

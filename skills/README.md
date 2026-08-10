@@ -11,13 +11,16 @@ bundle contains an **orchestrator plus independently invocable specialists**;
 the orchestrator performs the handoffs rather than specialists invoking one
 another.
 
-## The deliverable is two artifacts
+## The deliverable is three artifacts
 
 - **Unstructured** — a prose document (`docs/threat-model.md`) written to a fixed
   section structure, with structured tables embedded inline (per-input-operand trust
   table, contract-dimension matrix, disposition set, triager quick-start).
 - **Structured** — a machine-readable companion (`threat-model.yaml`) that a
   triage pipeline or AI can consume.
+- **Export** — a flat `threat-model.json` conforming to the repo's `schema.json`,
+  for external consumers that speak that schema. Lossy by design; authority
+  order is prose > yaml > json, and triage never runs from the JSON alone.
 
 ## Skills
 
@@ -30,7 +33,7 @@ another.
 | [`threat-model-authoring`](./threat-model-authoring/SKILL.md) | Draft the prose document with embedded structured tables; provenance tagging. | 3.5 |
 | [`threat-model-backtest`](./threat-model-backtest/SKILL.md) | Validate the draft against the historical finding corpus; feed §1.15. | 3.6 |
 | [`threat-model`](./threat-model/SKILL.md) | Iterate revisions, obtain sign-off, or publish unratified under the termination policy. | 3.7 |
-| [`threat-model-sidecar`](./threat-model-sidecar/SKILL.md) | Emit + validate the machine-readable `threat-model.yaml`. | §1.19 |
+| [`threat-model-sidecar`](./threat-model-sidecar/SKILL.md) | Emit + validate the machine-readable companions: `threat-model.yaml` and the `threat-model.json` export. | §1.19 |
 | [`threat-model-triage`](./threat-model-triage/SKILL.md) | **Downstream reuse** — route one inbound finding to a single disposition. | consume |
 
 ## Call graph
@@ -63,6 +66,7 @@ generation and the finalize gate run afterward as publication gates.
 - [`output-structure.md`](./threat-model/references/output-structure.md) — the §1.1–§1.19 document spec, provenance tags, and closed disposition set.
 - [`question-bank.md`](./threat-model/references/question-bank.md) — reference questions, by wave.
 - [`sidecar-schema.md`](./threat-model/references/sidecar-schema.md) — the `threat-model.yaml` schema.
+- [`json-report-schema.md`](./threat-model/references/json-report-schema.md) — the `threat-model.json` export: field mapping, provenance collapse, and what the JSON does not carry.
 - [`self-check.md`](./threat-model/references/self-check.md) — the four finalize gates.
 - [`glossary.md`](./threat-model/references/glossary.md) — plain-language definitions of the threat-modeling jargon for non-expert maintainers.
 - [`worked-example.md`](./threat-model/references/worked-example.md) — a zlib flavor sketch.
