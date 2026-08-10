@@ -1196,7 +1196,11 @@ def _collect_artifacts(
     # canonical spot is the repo root (the subdir for scoped runs), with the
     # same in-scope fallback search.
     json_src = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
-    have_json = copy_artifact(json_src, out_dir / "threat-model.json")
+    if json_src.is_symlink():
+        console.warn("threat-model.json is a symlink; not collecting it")
+        have_json = False
+    else:
+        have_json = copy_artifact(json_src, out_dir / "threat-model.json")
 
     # Keep the vendored security context with the artifacts so a reviewer can
     # see exactly which external history informed the run — but only when this
