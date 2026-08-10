@@ -103,9 +103,45 @@ def _probe(quote: str) -> str | None:
     return best if len(best) >= 40 else None
 
 
+def _contained_file(root: Path, candidate: Path) -> Path | None:
+    """Return the resolved file only when it remains below ``root``."""
+    try:
+        resolved = candidate.resolve()
+        if resolved != root and root not in resolved.parents:
+            return None
+        return resolved if resolved.is_file() else None
+    except (OSError, RuntimeError):
+        return None
+
+
+def _resolve_source_file(root: Path, path: str) -> Path | None:
+    """Resolve a citation path or its unique basename match within ``root``."""
+    try:
+        direct = (root / path).resolve()
+        if direct != root and root not in direct.parents:
+            return None
+        if direct.is_file():
+            return direct
+    except (OSError, RuntimeError):
+        return None
+
+    matches: set[Path] = set()
+    try:
+        candidates = root.rglob(Path(path).name)
+        for candidate in candidates:
+            target = _contained_file(root, candidate)
+            if target is not None:
+                matches.add(target)
+                if len(matches) > 1:
+                    return None
+    except OSError:
+        return None
+    return next(iter(matches)) if len(matches) == 1 else None
+
+
 def check_citations(model: Model, source_root: Path) -> Iterable[Finding]:
     """Resolve `file:line` citations and attributed quotes against the tree."""
-    root = Path(source_root)
+    root = Path(source_root).resolve()
     text = model.text
 
     unresolved: list[str] = []
@@ -117,15 +153,10 @@ def check_citations(model: Model, source_root: Path) -> Iterable[Finding]:
         seen.add((path, line_no))
         if Path(path).suffix.lower() not in _SOURCE_SUFFIXES:
             continue
-        target = root / path
-        if not target.is_file():
-            # Fall back to a unique basename match: models cite `inflate.c`
-            # where the tree may nest it under a subdirectory.
-            matches = [p for p in root.rglob(Path(path).name) if p.is_file()]
-            if len(matches) != 1:
-                unresolved.append(f"{path}:{line_no} (no such file under the source root)")
-                continue
-            target = matches[0]
+        target = _resolve_source_file(root, path)
+        if target is None:
+            unresolved.append(f"{path}:{line_no} (no such file under the source root)")
+            continue
         try:
             lines = target.read_text(errors="replace").splitlines()
         except OSError as exc:                       # pragma: no cover - unreadable file
@@ -153,15 +184,18 @@ def check_citations(model: Model, source_root: Path) -> Iterable[Finding]:
     for quote, path in _ATTRIBUTED_QUOTE.findall(text):
         if Path(path).suffix.lower() not in _SOURCE_SUFFIXES:
             continue
-        candidates = [root / path]
-        if not candidates[0].is_file():
-            candidates = [p for p in root.rglob(Path(path).name) if p.is_file()]
-        if len(candidates) != 1:
-            continue                                  # unresolvable, CITE.resolves owns it
+        target = _resolve_source_file(root, path)
+        if target is None:
+            missing_quotes.append(f"{path}: file does not resolve under source root")
+            continue
         probe = _probe(quote)
         if probe is None:
             continue      # nothing long enough to match on without false alarms
-        body = _norm(candidates[0].read_text(errors="replace"))
+        try:
+            body = _norm(target.read_text(errors="replace"))
+        except OSError as exc:                       # pragma: no cover - unreadable file
+            missing_quotes.append(f"{path}: {exc}")
+            continue
         if probe not in body:
             missing_quotes.append(f"{path}: {probe[:70]!r}")
 

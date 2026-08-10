@@ -70,6 +70,35 @@ def test_basename_falls_back_when_unique(tree):
     assert _fail_ids(tree, "The bit is cleared at `widget.c:6`.") == set()
 
 
+@pytest.mark.parametrize("citation_path", ["../outside.c", "ABSOLUTE"])
+def test_code_citation_cannot_escape_source_root(tmp_path, citation_path):
+    root = tmp_path / "checkout"
+    root.mkdir()
+    outside = tmp_path / "outside.c"
+    outside.write_text("int outside(void) { return 1; }\n")
+    (root / "outside.c").write_text("int decoy(void) { return 1; }\n")
+    if citation_path == "ABSOLUTE":
+        citation_path = str(outside)
+
+    assert _fail_ids(root, f"See `{citation_path}:1`.") == {"CITE.resolves"}
+
+
+def test_code_citation_rejects_symlinks_outside_source_root(tmp_path):
+    root = tmp_path / "checkout"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    outside = tmp_path / "outside.c"
+    outside.write_text("int outside(void) { return 1; }\n")
+    try:
+        (root / "direct.c").symlink_to(outside)
+        (nested / "fallback.c").symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available")
+
+    assert _fail_ids(root, "See `direct.c:1`.") == {"CITE.resolves"}
+    assert _fail_ids(root, "See `fallback.c:1`.") == {"CITE.resolves"}
+
+
 def test_quote_must_appear_in_the_file_it_is_attributed_to(tree):
     real = ('"continuation starts with a word, not an asterisk" '
             "*(documented, `src/widget.c`)*")
@@ -77,6 +106,37 @@ def test_quote_must_appear_in_the_file_it_is_attributed_to(tree):
             "*(documented, `src/widget.c`)*")
     assert "CITE.quotes" not in _fail_ids(tree, real)
     assert "CITE.quotes" in _fail_ids(tree, fake)
+
+
+@pytest.mark.parametrize("citation_path", ["../outside.c", "ABSOLUTE"])
+def test_attributed_quote_cannot_escape_source_root(tmp_path, citation_path):
+    root = tmp_path / "checkout"
+    root.mkdir()
+    outside = tmp_path / "outside.c"
+    quote = "outside quotation must never be read by citation validation"
+    outside.write_text(quote + "\n")
+    (root / "outside.c").write_text(quote + "\n")
+    if citation_path == "ABSOLUTE":
+        citation_path = str(outside)
+    body = f'"{quote}" *(documented, `{citation_path}`)*'
+
+    assert "CITE.quotes" in _fail_ids(root, body)
+
+
+def test_attributed_quote_rejects_symlink_outside_source_root(tmp_path):
+    root = tmp_path / "checkout"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    outside = tmp_path / "outside.c"
+    quote = "outside quotation must never be read by citation validation"
+    outside.write_text(quote + "\n")
+    try:
+        (nested / "linked.c").symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available")
+
+    body = f'"{quote}" *(documented, `linked.c`)*'
+    assert "CITE.quotes" in _fail_ids(root, body)
 
 
 def test_elided_quote_matches_on_its_longest_fragment(tree):
