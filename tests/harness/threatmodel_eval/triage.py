@@ -181,8 +181,8 @@ class _Router:
             # as if it were singular yields no scope at all, which would turn
             # every entry into a universal suppressor at precedence rule 1.
             entry_comps = entry_components(k)
-            if (comp and entry_comps and ALL_IN_SCOPE not in entry_comps
-                    and comp not in entry_comps):
+            if (not comp or not entry_comps or ALL_IN_SCOPE in entry_comps
+                    or comp not in entry_comps):
                 return None
             return f"known_non_findings[{ref}]", k.get("provenance")
         return None

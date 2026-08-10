@@ -445,6 +445,27 @@ def test_known_non_finding_component_guard_reads_both_schema_forms():
             assert r.disposition != "KNOWN-NON-FINDING", (scope, other)
 
 
+def test_known_non_finding_component_guard_fails_closed_without_exact_scope():
+    sc = _mini_sidecar()
+    r = triage({"matches_known_non_finding": "sanitizer-noise"}, sc)
+    assert r.disposition == "MODEL-GAP"
+
+    for scope in (
+        {},
+        {"components": []},
+        {"components": ["all-in-scope"]},
+        {"components": ["core", "all-in-scope"]},
+    ):
+        sc = _mini_sidecar()
+        entry = sc["known_non_findings"][0]
+        entry.pop("component", None)
+        entry.update(scope)
+
+        r = triage(
+            {"component": "core", "matches_known_non_finding": "sanitizer-noise"}, sc)
+        assert r.disposition == "MODEL-GAP", scope
+
+
 def test_disposition_status_tracks_closed_provisional_escalated():
     """``status`` is the §1.17 qualifier a triager records; it is not ``effective``."""
     sc = _mini_sidecar()
