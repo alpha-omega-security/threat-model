@@ -1,20 +1,16 @@
 ---
 name: threat-model
 description: >
-  Produce a high-quality threat model for a targeted open-source repository or
-  package — the implicit security contract between a project and its downstream
-  users (assumptions, guarantees, disclaimed properties, misuses), NOT an audit,
-  pentest, CVE list, or build-hygiene checklist. USE WHEN asked to
-  "produce/write/generate a threat model", "model the security contract", or
-  "what threats does this library take on". This is the ORCHESTRATOR: it drives
-  the canonical 3.1–3.7 procedure (orient → mine → surface → interview → draft
-  → backtest → iterate/sign off) and delegates to the threat-model-* specialists,
-  then runs sidecar and finalize publication gates. The deliverable is three
-  artifacts: a prose document (docs/threat-model.md), a structured
-  machine-readable companion (threat-model.yaml), and a flat JSON export
-  (threat-model.json) — authority order prose > yaml > json. To classify one
-  inbound finding against a finished model, use threat-model-triage. DO NOT USE
-  FOR: bug hunting, code review, CVE enumeration, or supply-chain/SDLC hygiene.
+  Produce a threat model for a targeted open-source repository or package: its
+  implicit security contract (assumptions, guarantees, disclaimed properties,
+  and known misuses), not an audit, pentest, CVE list, or build-hygiene review.
+  USE WHEN asked to produce, write, or generate a threat model, model the
+  security contract, or explain which threats a library accepts. This
+  orchestrator runs the canonical workflow, delegates to threat-model-*
+  specialists, and publishes docs/threat-model.md, threat-model.yaml, and
+  threat-model.json (authority: prose > YAML > JSON). To classify a finding
+  against an existing model, use threat-model-triage. DO NOT USE FOR bug
+  hunting, code review, CVE enumeration, or supply-chain/SDLC hygiene.
 argument-hint: '<path or name of the repo/package to model>'
 ---
 
