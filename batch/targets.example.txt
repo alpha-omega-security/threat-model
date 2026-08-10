@@ -1,7 +1,54 @@
 # Threat-model batch targets — one repository URL per line.
 # Blank lines and lines starting with '#' are ignored.
 # An optional second token pins a git ref (branch, tag, or commit).
+# key=value tokens set per-target generator options: ref=, subdir=,
+# osv-package=<ecosystem>:<name>, context-url=<url> (repeatable).
+# The last two feed the security-context fetcher; enable it batch-wide with
+# "extra_args": ["--fetch-security-context"] in the configs file.
+#
+# Five packages per ecosystem, chosen to be widely depended on but small enough
+# to model in one pass — parsers, decoders, HTTP clients and serializers, where
+# the security contract is the interesting part. Deliberately no browser
+# engines, kernels or crypto monoliths: those need several models, not one.
+#
+# osv-package uses OSV's ecosystem names (npm, PyPI, NuGet, Maven, Ubuntu).
+# Only the first colon separates ecosystem from name, so Maven's
+# groupId:artifactId passes through intact.
 
-https://github.com/jashkenas/underscore
-https://github.com/madler/zlib
-https://github.com/lodash/lodash  4.17.21
+# --- npm -------------------------------------------------------------------
+https://github.com/expressjs/express        osv-package=npm:express
+https://github.com/axios/axios              osv-package=npm:axios
+https://github.com/websockets/ws            osv-package=npm:ws
+https://github.com/isaacs/node-tar          osv-package=npm:tar
+https://github.com/npm/node-semver          osv-package=npm:semver
+
+# --- PyPI ------------------------------------------------------------------
+https://github.com/psf/requests             osv-package=PyPI:requests
+https://github.com/urllib3/urllib3          osv-package=PyPI:urllib3
+https://github.com/yaml/pyyaml              osv-package=PyPI:PyYAML
+https://github.com/pallets/jinja            osv-package=PyPI:Jinja2
+https://github.com/python-pillow/Pillow     osv-package=PyPI:Pillow
+
+# --- NuGet -----------------------------------------------------------------
+https://github.com/JamesNK/Newtonsoft.Json  osv-package=NuGet:Newtonsoft.Json
+https://github.com/aaubry/YamlDotNet        osv-package=NuGet:YamlDotNet
+https://github.com/SixLabors/ImageSharp     osv-package=NuGet:SixLabors.ImageSharp
+https://github.com/jstedfast/MimeKit        osv-package=NuGet:MimeKit
+https://github.com/zzzprojects/html-agility-pack osv-package=NuGet:HtmlAgilityPack
+
+# --- Maven (Java) ----------------------------------------------------------
+# Multi-module repos point subdir= at the library itself, so the agent starts
+# in the code under test rather than at the build aggregator.
+https://github.com/FasterXML/jackson-databind osv-package=Maven:com.fasterxml.jackson.core:jackson-databind
+https://github.com/google/gson               subdir=gson osv-package=Maven:com.google.code.gson:gson
+https://github.com/apache/commons-compress   osv-package=Maven:org.apache.commons:commons-compress
+https://github.com/apache/commons-text       osv-package=Maven:org.apache.commons:commons-text
+https://github.com/square/okhttp             subdir=okhttp osv-package=Maven:com.squareup.okhttp3:okhttp
+
+# --- Ubuntu (upstream C libraries shipped as distro packages) ---------------
+# osv-package names the Ubuntu *source* package, which is what OSV indexes.
+https://github.com/libexpat/libexpat         subdir=expat osv-package=Ubuntu:expat
+https://github.com/pnggroup/libpng           osv-package=Ubuntu:libpng1.6
+https://github.com/libjpeg-turbo/libjpeg-turbo osv-package=Ubuntu:libjpeg-turbo
+https://github.com/libarchive/libarchive     osv-package=Ubuntu:libarchive
+https://github.com/curl/curl                 ref=curl-8_11_1 osv-package=Ubuntu:curl

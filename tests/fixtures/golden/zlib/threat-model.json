@@ -1,0 +1,350 @@
+{
+  "spec_version": 1,
+  "repository": "https://github.com/madler/zlib",
+  "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+  "date": "2026-08-07",
+  "scope_subpath": null,
+  "description": "In-process compression and decompression of application data, linked directly into a host program. zlib ships as a library with no daemon or privileged mode. The caller is trusted for the process; the compressed input bytes are the untrusted surface.",
+  "confidence": {
+    "documented": 68,
+    "inferred": 7
+  },
+  "components": [
+    {
+      "name": "core-inflate",
+      "entry_points": [
+        "inflate",
+        "inflateInit2"
+      ],
+      "touches": [],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "name": "core-deflate",
+      "entry_points": [],
+      "touches": [],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "name": "gzip-file-api",
+      "entry_points": [
+        "gzopen"
+      ],
+      "touches": [
+        "filesystem"
+      ],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "zlib manual"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "item": "contrib-samples",
+      "reason": "third-party samples, unsupported per §1.3",
+      "provenance": "inferred",
+      "source": "open question Q2"
+    },
+    {
+      "item": "examples-demos",
+      "reason": "examples/ demonstration programs, not the supported library surface per §1.3",
+      "provenance": "documented",
+      "source": "zlib source layout"
+    }
+  ],
+  "trust_boundaries": [
+    {
+      "component": "core-inflate",
+      "boundary": "compressed input bytes are attacker-controlled; caller buffers, lengths, and window arguments are trusted",
+      "reachability_precondition": "reachable from compressed input bytes",
+      "provenance": "inferred",
+      "source": "open question Q1"
+    },
+    {
+      "component": "core-deflate",
+      "boundary": "input is caller-supplied plaintext; the caller is trusted for the process",
+      "reachability_precondition": "reachable from caller-supplied plaintext",
+      "provenance": "inferred",
+      "source": "open question Q1"
+    },
+    {
+      "component": "gzip-file-api",
+      "boundary": "compressed bytes cross the boundary through a gz* handle over a caller-named file",
+      "reachability_precondition": "reachable from gz* handle over caller-named file",
+      "provenance": "inferred",
+      "source": "open question Q1"
+    }
+  ],
+  "entry_points": [
+    {
+      "entry_point": "inflate",
+      "parameter": "next_in/avail_in",
+      "attacker_controllable": "yes",
+      "component": "core-inflate",
+      "caller_must_enforce": "none — memory-safety-untrusted-input",
+      "provenance": "documented",
+      "source": "inflate API contract"
+    },
+    {
+      "entry_point": "inflate",
+      "parameter": "next_out/avail_out",
+      "attacker_controllable": "no",
+      "component": "core-inflate",
+      "caller_must_enforce": "buffer >= claimed size; honor avail_out",
+      "provenance": "inferred",
+      "source": "open question Q4"
+    },
+    {
+      "entry_point": "inflateInit2",
+      "parameter": "windowBits",
+      "attacker_controllable": "no",
+      "component": "core-inflate",
+      "caller_must_enforce": "within documented range",
+      "provenance": "inferred",
+      "source": "open question Q4"
+    },
+    {
+      "entry_point": "gzopen",
+      "parameter": "path",
+      "attacker_controllable": "no",
+      "component": "gzip-file-api",
+      "caller_must_enforce": "validate/sanitize path before passing",
+      "provenance": "documented",
+      "source": "gzopen API contract"
+    }
+  ],
+  "environment": {
+    "assumes": [
+      "hosted C runtime with a caller-provided allocator (zalloc/zfree)",
+      "external synchronization for a shared z_stream"
+    ],
+    "does_not": [
+      "open sockets",
+      "spawn child processes",
+      "install signal handlers",
+      "touch the filesystem outside the gzip file API"
+    ],
+    "provenance": "inferred",
+    "source": "open question Q5"
+  },
+  "build_variants": [
+    {
+      "name": "ZLIB_CONST",
+      "default": "off",
+      "effect": "changes API shape only; no effect on the security model",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "zlib build documentation"
+    },
+    {
+      "name": "custom-MAX_WBITS",
+      "default": "shipped default",
+      "effect": "narrows configured-window-memory-bound",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "zlib build documentation"
+    }
+  ],
+  "adversaries": {
+    "in_scope": [
+      "compressed-input-author"
+    ],
+    "out_of_scope": [
+      "in-process-caller"
+    ],
+    "provenance": "inferred",
+    "source": "open question Q1"
+  },
+  "properties_provided": [
+    {
+      "property": "memory-safety-untrusted-input",
+      "violation_symptom": "crash, oob-read, oob-write",
+      "severity_tier": "security",
+      "conditions": "any input on a supported platform",
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "integrity-check-on-decode",
+      "violation_symptom": "wrong-output",
+      "severity_tier": "security",
+      "conditions": "caller has not called inflateValidate(strm, 0)",
+      "provenance": "documented",
+      "source": "zlib manual, inflate check-value description"
+    },
+    {
+      "property": "output-bound-honored",
+      "violation_symptom": "buffer-overflow",
+      "severity_tier": "security",
+      "conditions": "single call with valid output buffer",
+      "provenance": "documented",
+      "source": "inflate API contract"
+    },
+    {
+      "property": "termination",
+      "violation_symptom": "hang, infinite-loop",
+      "severity_tier": "security",
+      "conditions": "valid or invalid input",
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "stream-lifecycle",
+      "violation_symptom": "invalid-state",
+      "severity_tier": "correctness",
+      "conditions": "documented init/end or open/close sequence",
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "independent-stream-thread-safety",
+      "violation_symptom": "data-race",
+      "severity_tier": "correctness",
+      "conditions": "streams are independent",
+      "provenance": "documented",
+      "source": "zlib FAQ"
+    },
+    {
+      "property": "configured-window-memory-bound",
+      "violation_symptom": "allocation-exceeds-configured-bound",
+      "severity_tier": "correctness",
+      "conditions": "internal window allocation is bounded by configured MAX_WBITS",
+      "provenance": "documented",
+      "source": "zlib build documentation"
+    }
+  ],
+  "properties_not_provided": [
+    {
+      "property": "confidentiality-integrity-authenticity",
+      "reason": "all supported configurations",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "crc-as-mac",
+      "reason": "all supported configurations",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "decompression-bomb-resistance",
+      "reason": "no caller output budget",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "failure-state-atomicity",
+      "reason": "operation returns failure",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "trusted-callback-safety",
+      "reason": "caller allocator violates its contract",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "resource-budgeting",
+      "reason": "caller-selected memory level",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib manual"
+    },
+    {
+      "property": "shared-stream-thread-safety",
+      "reason": "shared handle without synchronization",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "zlib FAQ"
+    }
+  ],
+  "attack_classes": [
+    "memory-corruption",
+    "resource-exhaustion"
+  ],
+  "downstream_responsibilities": [
+    "cap total decompressed output",
+    "treat output as untrusted",
+    "synchronize shared stream access"
+  ],
+  "known_misuse": [
+    {
+      "pattern": "using CRC-32 for authentication",
+      "why_unsafe": "Adler-32 and CRC-32 detect accidental corruption, not tampering",
+      "instead": "use a MAC"
+    },
+    {
+      "pattern": "decompressing without an output cap",
+      "why_unsafe": "bounding decompressed size is the caller's responsibility",
+      "instead": "enforce an output budget"
+    }
+  ],
+  "known_non_findings": [
+    {
+      "reported_as": "OOM on crafted stream without an output cap",
+      "why_safe": "Against core-inflate, unbounded-allocation is the disclaimed decompression-bomb-resistance property: capping decompressed output is the caller's job.",
+      "cites": "properties_not_provided[2]",
+      "suppression": "no output budget and no memory-safety violation"
+    },
+    {
+      "reported_as": "CRC/Adler collision or forgery report",
+      "why_safe": "Against gzip-file-api, integrity-bypass is the disclaimed crc-as-mac property: the checksums detect corruption, not tampering.",
+      "cites": "properties_not_provided[1]",
+      "suppression": "report assumes checksum authenticity rather than memory corruption"
+    },
+    {
+      "reported_as": "MSan/Valgrind use-of-uninitialized-value in the deflate match loop",
+      "why_safe": "Against core-deflate, an uninitialized-read that stays inside a zlib allocation does not breach the claimed memory-safety-untrusted-input property.",
+      "cites": "properties_provided[0]",
+      "suppression": "the value never affects deflate output and the read stays inside a zlib allocation"
+    }
+  ],
+  "dispositions": [
+    "valid",
+    "valid_hardening",
+    "out_of_model_trusted_input",
+    "out_of_model_adversary",
+    "out_of_model_unsupported_component",
+    "out_of_model_non_default_build",
+    "by_design_disclaimed",
+    "known_non_finding",
+    "model_gap"
+  ],
+  "open_questions": [
+    {
+      "claim": "the untrusted surface is exactly the compressed input bytes, with every sizing argument caller-trusted",
+      "field": "trust_boundaries",
+      "proposed": "yes"
+    },
+    {
+      "claim": "contrib/ is unsupported for security purposes",
+      "field": "out_of_scope",
+      "proposed": "yes; reports there close as out_of_model_unsupported_component"
+    },
+    {
+      "claim": "downstream well-formedness is disclaimed for every output grammar",
+      "field": "properties_not_provided",
+      "proposed": "yes; output is exactly as untrusted as its input"
+    },
+    {
+      "claim": "the caller-trusted classification of next_out and windowBits is complete",
+      "field": "entry_points",
+      "proposed": "yes; the caller owns both"
+    },
+    {
+      "claim": "there are no host side-effects beyond those listed",
+      "field": "environment",
+      "proposed": "no — no sockets, child processes, or signal handlers, and no filesystem access outside the gzip file API"
+    }
+  ]
+}

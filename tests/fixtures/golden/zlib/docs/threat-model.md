@@ -9,15 +9,21 @@
   through the project's private disclosure channel; §1.3 / §1.12 findings are
   closed by citing this document.
 - **Status**: unratified draft, 2025-03. While unratified, any disposition that
-  closes a report against the reporter must be licensed by a *(documented)* or
-  *(maintainer)* claim (see §1.17); *(inferred)* licensing escalates instead.
+  closes a report against the reporter must be licensed by a **documented** or
+  **maintainer** claim (see §1.17); **inferred** licensing escalates instead.
 - **Provenance legend**: *(documented, source)* = stated in the named public
   source; *(maintainer, YYYY-MM)* = confirmed by a maintainer on that date;
   *(inferred, QN)* = reasoned from code and mapped to question `QN` in §1.18.
-- **Draft confidence**: 59 documented / 0 maintainer / 8 inferred.
-- **Backtest note**: routed a 4-item historical corpus (CVE-2018-25032,
-  CVE-2022-37434, one fuzzer OOM, one CRC "MAC" report); all four landed on a
-  single disposition with no MODEL-GAP.
+- **Draft confidence**: 68 documented / 0 maintainer / 7 inferred.
+- **Backtest note**: routed a 12-item corpus in 6 clusters across all 8
+  applicable contract dimensions; 9 items carry a real historical outcome, 3 are
+  synthesized. Dispositions: 4 `VALID`, 3 `BY-DESIGN: property-disclaimed`, 1
+  `KNOWN-NON-FINDING`, 4 `OUT-OF-MODEL: unsupported-component`, 0
+  `MODEL-GAP`. All 4 historically-fixed
+  items routed `VALID`, so nothing the project fixed was closed. 7 of 12 close
+  outright; one `unsupported-component` route escalates instead, because §1.3's
+  `contrib/` exclusion is still unratified (Q2). One contradiction with the
+  historical call raised Q3.
 - **Sibling models**: none; this model covers the core library only.
 
 zlib is an in-process C library that compresses and decompresses byte streams
@@ -25,6 +31,8 @@ using DEFLATE (raw, zlib, and gzip framing). It performs no I/O of its own and
 holds no ambient authority; the calling application owns all buffers and files.
 
 > **Triager quick-start.** Given an inbound finding:
+> 0. Read the triage policy above (`strict` here). It decides what an
+>    **assumption** may do in step 8.
 > 1. Locate the sink → look up its row in the §1.7 input-trust table (or the
 >    §1.8 output statement, for "downstream may assume X" findings).
 > 2. Locate the contract dimension and follow its matrix row to the owning claim.
@@ -35,6 +43,19 @@ holds no ambient authority; the calling application owns all buffers and files.
 > 6. Apply §1.17 precedence, beginning with an exact §1.15 match.
 > 7. Assign exactly one §1.17 disposition, citing its licensing section. If none
 >    fits, assign `MODEL-GAP` and trigger §1.16 — do not improvise.
+> 8. **Before closing, check the provenance of the licensing claim.** Applies to
+>    every `OUT-OF-MODEL: *`, `BY-DESIGN: *`, and `KNOWN-NON-FINDING`; `VALID`
+>    and `MODEL-GAP` are unaffected.
+>    - **documented** / **maintainer** → close.
+>    - **inferred** → **escalate, never close**, under either policy.
+>    - **assumption** → escalate under `strict` (this model). Under `relaxed` it
+>      may provisionally close a low-blast-radius route, never
+>      `KNOWN-NON-FINDING`, a security-critical `property-disclaimed`, or
+>      `dependency-contract`.
+>    - A disclaimer resting only on the docs being **silent** never closes a
+>      security-critical report.
+>    Record the outcome as `closed`, `provisional`, or `escalated`. An escalated
+>    finding keeps its disposition — it is not a `MODEL-GAP`.
 
 ## 1.2 Scope and intended use
 
@@ -60,7 +81,12 @@ for the process; the *compressed input bytes* are the untrusted surface
   decompressed size is the caller's responsibility *(documented, zlib manual)*.
 - Shipped-but-unsupported: `contrib/` holds third-party samples and is not part
   of the supported library; findings there are `OUT-OF-MODEL: unsupported-component`
-  *(inferred, Q2)*.
+  *(inferred, Q2)* — **except `contrib/crc32vx/`**, which the build compiles
+  into libz on s390x: `configure` defaults `enable_crcvx=1` and enables it when
+  the host is s390x, `Makefile.in:164` builds `crc32_vx.o` from it, and the
+  public `crc32()` dispatches there under `HAVE_S390X_VX` (`crc32.c:947`). That
+  file is **in scope** on s390x builds; a report against it routes on its merits,
+  not as an unsupported component *(documented, `Makefile.in` crc32_vx rule)*.
 - Demonstration code: `examples/` programs (e.g. `gun`, `gzappend`) are teaching
   samples, not the supported library surface; findings there are
   `OUT-OF-MODEL: unsupported-component` *(documented, zlib source layout)*.
@@ -138,12 +164,14 @@ component family):
 
 ## 1.8 Assumptions and guarantees about outputs
 
-Output taint: the decompressed bytes are exactly as untrusted as the compressed
-input they derive from; no sanitization, normalization, or encoding is performed
-*(documented, inflate API contract)*. Guaranteed structural invariant: output never exceeds the
-caller's supplied `avail_out` per call — promoted to §1.11 with a symptom and
-tier. Downstream must NOT assume the output is well-formed for any higher-layer
-grammar (UTF-8, HTML, SQL, shell) *(inferred, Q3)*.
+| Output channel | Component | Taint | Downstream must not assume | Provenance |
+| --- | --- | --- | --- | --- |
+| `next_out` decompressed bytes | `core-inflate` | Exactly as untrusted as the compressed input; no sanitization, normalization, or encoding | Well-formed for any higher-layer grammar — UTF-8, HTML, SQL, shell | *(documented, zlib manual, `inflate` description)* |
+| `out()` callback buffer | `core-inflate` | Same as above; the window is the caller's own buffer | That writes stay within `avail_out` — the `inflateBack` bound is the window size, not `avail_out` | *(documented, zlib.h `inflateBack`, "at most the window size")* |
+| `strm->msg` / `gzerror` string | `core-inflate`, `gzip-file-api` | **Assembled**, not constant: the `gz*` layer builds it from the caller-supplied path | That it is safe to render — it embeds a path the caller chose | *(documented, `gzlib.c` `gz_error`, `"%s%s%s"` with `state->path`)* |
+
+Output never exceeds `avail_out` per `inflate` call — promoted to §1.11 as
+`output-bound-honored` with a symptom and tier.
 
 ## 1.9 Assumptions about dependencies
 
@@ -156,36 +184,100 @@ one runtime dependency the model names explicitly *(documented, zlib manual)*.
 
 ## 1.10 Adversary model
 
-The attacker controls the compressed input bytes and can craft arbitrary,
-malformed, or maximally expanding streams *(documented, zlib manual)*. They cannot control
-the caller's buffer pointers, lengths, allocator, or build flags. A caller who
-already controls the process or its memory has won and is out of scope
-*(documented, zlib manual)*.
+Actors assume the baseline deployment context: zlib linked in-process into a
+host program that owns its own memory (§1.2).
+
+| Actor | In scope? | Capabilities held | Capabilities excluded | Goals | Provenance |
+| --- | --- | --- | --- | --- | --- |
+| Compressed-input author | **yes** | Supply arbitrary, malformed, or maximally expanding stream bytes; choose input size | Cannot choose buffer pointers, lengths, the allocator, `windowBits`, or build flags; cannot run code in the host process | Memory corruption, resource exhaustion | *(documented, zlib manual, "never crash even on corrupted input")* |
+| In-process caller | no | Chooses every buffer, the allocator, and the build | — (excluded wholesale) | — | *(documented, zlib manual — a caller controlling the process has already won)* |
 
 ## 1.11 Security properties the project provides
 
-- **Memory safety on decompression**: for any input, `inflate` must not read or
-  write out of bounds. *Violation symptom*: OOB read/write or crash. *Tier*:
-  security-critical (CVE-class). *(documented, zlib manual)*
+- **Memory safety on untrusted input** (`core-inflate`, `core-deflate`): for any
+  input, `inflate` and `deflate` must not read or write out of bounds.
+  *Violation symptom*: OOB read/write or crash — the write path is bounded by
+  the distance test at `inflate.c:1026` (`if (state->sane)`) and by the fast
+  loop's output limit at `inffast.c:83` (`end = out + (strm->avail_out - 257)`).
+  *Tier*: security-critical (CVE-class). *Voided by*: `inflateUndermine(strm, 1)` relaxes the
+  distance-too-far check — `inflate.c:1376` sets `state->sane = !subvert`, but
+  only in a build defining `INFLATE_ALLOW_INVALID_DISTANCE_TOOFAR_ARRR`; the
+  default build returns `Z_DATA_ERROR` and leaves the check on (§1.6).
+  *(documented, zlib manual)*
 - **Output bound honored**: a single call writes no more than `avail_out` bytes.
-  *Violation symptom*: buffer overflow. *Tier*: security-critical. *(documented, inflate API contract)*
+  *Violation symptom*: buffer overflow — output is clamped by `left`, loaded
+  from `avail_out` at `inflate.c:331` and written back at `inflate.c:342`.
+  *Tier*: security-critical.
+  *Voided by*:
+  `inflateBackInit` swaps the bound — it stores a caller-supplied window at
+  `infback.c:59` (`state->window = window;`) which `inflateBack` writes through
+  at `infback.c:222`, so for that entry point the limit is the window size, not
+  `avail_out` (`zlib.h`, `inflateBack`: "The length written by out() will be at
+  most the window size"). No other `ZEXPORT` in `zlib.h` assigns to the output
+  or window state. *(documented, inflate API contract)*
 - **Termination**: `inflate` makes forward progress and does not hang on valid
   or invalid input. *Violation symptom*: infinite loop / hang. *Tier*:
-  security-critical. *(documented, zlib manual)*
+  security-critical. *Voided by*: nothing.
+  Search: `grep -rn 'sane\|_STRICT\|ASMINF\|undermine' *.c *.h configure` —
+  hits only in `inflate.c`/`inffast.c` for the distance check, none touching
+  loop progress. *(documented, zlib manual)*
+- **Integrity check on decode**: `inflate` returns `Z_STREAM_END` only when the
+  trailing Adler-32 or CRC-32 matches. *Violation symptom*: corrupted data
+  accepted as valid. *Tier*: security-critical. *Voided by*:
+  `inflateValidate(strm, 0)` — `inflate.c:1393` clears the check-value bit with
+  `state->wrap &= ~4`, and every check-value comparison in the file is gated on
+  that bit. A report that inflate accepted a bad CRC must first establish that
+  the caller did not call it. *(documented, zlib manual)*
 - **Configured window-memory bound**: internal sliding-window allocation is
   bounded by the build's configured `MAX_WBITS`; the configured maximum is the
   threshold. *Violation symptom*: allocation exceeding that configured bound.
-  *Tier*: correctness-only. *(documented, zlib build documentation)*
+  *Tier*: correctness-only. *Voided by*: nothing at run time — the ceiling is
+  set at build time by `MAX_WBITS` (`zconf.h:287`, `15`) and `MAX_MEM_LEVEL`
+  (`zconf.h:277`), and `deflateInit2`/`inflateInit2` only select within it.
+  A build redefining either moves the bound, which is why §1.6 carries it.
+  *(documented, zlib build documentation)*
+
+### Worked routing examples
+
+De-identified from the phase-3.6 backtest, to show the §1.1 algorithm in use.
+
+| Reported | Sink | Attacker needs | Symptom | Routes to | Licensed by |
+| --- | --- | --- | --- | --- | --- |
+| Crafted stream drives a write past the caller's output buffer | `inflate` | the compressed bytes only | OOB write | `VALID` | `output-bound-honored` |
+| Fuzzer OOM: a few KB expands to gigabytes with no output cap | `inflate` | the compressed bytes only | Unbounded allocation, OOM | `KNOWN-NON-FINDING` **(closed)** | `fuzzer-unbounded-memory` |
+| Data race corrupts state when two threads share one handle | `gzread` | nothing — a caller threading error | Data race, state corruption | `BY-DESIGN: property-disclaimed` **(closed)** | `shared-stream-thread-safety` |
+| Scanner hit in a bundled sample program | `contrib-samples` (`contrib/minizip`) | n/a | any | `OUT-OF-MODEL: unsupported-component` **(escalated)** | §1.3, still **inferred** (Q2) |
+
+Two of these are worth reading twice.
+
+Row 2 shows the precedence subtlety: the §1.12 bomb disclaimer would also close
+it, but an exact §1.15 match is rule 1 and fires first, so the disposition is
+`KNOWN-NON-FINDING` citing the entry — which in turn cites the disclaimer.
+
+Row 4 shows the provenance gate. The route is right, but §1.3's `contrib/`
+exclusion is still **inferred** (Q2), and an inferred claim may escalate and
+never close. So the finding keeps its disposition and goes to the maintainer
+rather than being answered. Ratifying Q2 turns this row from `escalated` into
+`closed` — which is what the open questions are for.
 
 ## 1.12 Security properties the project does *not* provide
 
-- No confidentiality, integrity, or authenticity of data *(documented, zlib manual)*.
-- **False-friend**: CRC-32/Adler-32 are error-detection checksums, frequently
-  mistaken for a MAC; they provide no protection against deliberate tampering
-  *(documented, zlib manual)*.
-- Well-known attack classes left to the caller: **compression bombs** (bound the
-  output), and untrusted-output injection (sanitize before rendering)
-  *(documented, zlib manual)*.
+Tier is the worst impact of a report the disclaimer would close, not how the
+project feels about the property.
+
+| ID | zlib does not provide | Conditions / boundary | Tier | False friend? | Provenance |
+| --- | --- | --- | --- | --- | --- |
+| `confidentiality-integrity-authenticity` | Confidentiality, integrity, or authenticity of data. | All supported configurations. | security-critical | no | *(documented, zlib manual, "not a secure protocol" note)* |
+| `crc-as-mac` | Tamper detection. CRC-32/Adler-32 detect accidental corruption only. | All supported configurations. | security-critical | **yes** | *(documented, zlib manual, `crc32` description)* |
+| `decompression-bomb-resistance` | Any bound on how much output a given input produces. | Caller sets no output budget. | security-critical | no | *(documented, zlib manual, `uncompress` note on caller-supplied size)* |
+| `shared-stream-thread-safety` | Safe concurrent use of one `z_stream` from several threads. | A handle shared without caller synchronization. | security-critical | no | *(documented, zlib FAQ #21)* |
+| `trusted-callback-safety` | Defence against a caller allocator that breaks its own contract. | `zalloc`/`zfree` violate their documented contract. | security-critical | no | *(documented, zlib manual, `zalloc` contract)* |
+| `failure-state-atomicity` | A defined stream state after a failed call. | The operation returned an error code. | correctness-only | no | *(documented, zlib manual, return-code section)* |
+| `resource-budgeting` | A memory budget below the caller's chosen level. | Caller-selected `memLevel`/`windowBits`. | correctness-only | no | *(documented, zlib manual, `deflateInit2`)* |
+
+Well-known attack classes left to the caller: **compression bombs** (bound the
+output), and untrusted-output injection (sanitize before rendering)
+*(documented, zlib manual)*.
 
 ## 1.13 Downstream responsibilities
 
@@ -202,14 +294,15 @@ already controls the process or its memory has won and is out of scope
 
 ## 1.15 Known non-findings (recurring false positives)
 
-- Fuzzer report of "unbounded memory" on a crafted stream: safe under the model
-  because §1.7 makes the caller responsible for capping output; suppress unless
-  an actual OOB or bound violation is shown *(documented, zlib manual)*.
-- CRC "collision"/"forgery" report: discharged by §1.12 — the checksum is not a
-  MAC *(documented, zlib manual)*.
-- MSan/Valgrind "use of uninitialized value" inside `deflate`'s match loop:
-  intentional for performance and never observable in the output, so it is a
-  false positive rather than a memory-safety break *(documented, zlib FAQ)*.
+An exact match satisfies every field *and* the discharging claim. Conditions
+describe what the code does, never how well the report was written: an
+unreproduced report is not a non-finding, it stays open pending a reproducer.
+
+| ID | Components | Symptom / attack class | What gets reported | Conditions for an exact match | Discharged by | Provenance |
+| --- | --- | --- | --- | --- | --- | --- |
+| `fuzzer-unbounded-memory` | `core-inflate` | Unbounded allocation | Fuzzer "unbounded memory" on a crafted stream | The caller set no output budget, and the run shows no out-of-bounds access or bound violation | `decompression-bomb-resistance` | *(documented, zlib manual, `uncompress` note on caller-supplied size)* |
+| `crc-forgery` | `gzip-file-api` | Integrity bypass | CRC/Adler "collision" or "forgery" | The report treats the checksum as authentication rather than error detection | `crc-as-mac` | *(documented, zlib manual, `crc32` description)* |
+| `msan-uninitialized-value` | `core-deflate` | Uninitialized read | MSan/Valgrind "use of uninitialized value" in the match loop | The value never affects deflate's output and the read stays inside a zlib allocation | `memory-safety-untrusted-input` | *(documented, zlib FAQ #36)* |
 
 ## 1.16 Conditions that would change this model
 
@@ -233,21 +326,69 @@ to a §1.17 disposition is itself a trigger to revise the model.
 | `KNOWN-NON-FINDING` | Matches a documented recurring false positive. | §1.15 |
 | `MODEL-GAP` | Fits none of the above; triggers §1.16. | §1.16 |
 
+**Precedence — first matching rule wins.** Multiple failed preconditions do not
+create a `MODEL-GAP`; this order resolves them.
+
+1. Exact §1.15 known non-finding → `KNOWN-NON-FINDING`.
+2. Out-of-scope §1.3 component → `OUT-OF-MODEL: unsupported-component`.
+3. Unsupported §1.6 configuration → `OUT-OF-MODEL: non-default-build`.
+4. Conformant use of a dependency that broke its own §1.9 contract →
+   `OUT-OF-MODEL: dependency-contract`.
+5. Requires control of a §1.7 trusted operand → `OUT-OF-MODEL: trusted-input`.
+6. Requires an excluded §1.10 capability →
+   `OUT-OF-MODEL: adversary-not-in-scope`.
+7. Concerns a §1.12 disclaimed property → `BY-DESIGN: property-disclaimed`.
+8. Violates a §1.11 claimed property → `VALID`; otherwise an easy-to-prevent
+   §1.14 misuse may be `VALID-HARDENING`.
+9. No unique supported conclusion → `MODEL-GAP`, triggering §1.16.
+
+**Closure constraint.** Any disposition that closes a report against the
+reporter (`OUT-OF-MODEL: *`, `BY-DESIGN: *`, `KNOWN-NON-FINDING`) must be
+licensed by a **documented** or **maintainer** claim.
+
+- An **inferred** licensing claim only **escalates**, under either policy.
+- This model declares the `strict` triage policy, so an **assumption** also
+  escalates only. Under `relaxed` it could provisionally close a
+  low-blast-radius route, citing the `QN` and re-opening on challenge.
+- **Security-critical floor (both policies).** An **assumption** never licenses
+  `KNOWN-NON-FINDING`, a `security-critical` `property-disclaimed`, or
+  `dependency-contract`.
+- **Silence floor (both policies).** A §1.12 disclaimer resting only on the docs
+  being *silent*, rather than on a stated limit, never closes a
+  `security-critical` report.
+- `VALID` and `MODEL-GAP` are fail-safe and are not closes.
+
+Record each outcome as `closed`, `provisional`, or `escalated`. An escalated
+finding keeps its disposition and goes to the maintainer; it is **not** a
+`MODEL-GAP`.
+
 ## 1.18 Open questions for the maintainers
 
-1. Confirm the untrusted surface is exactly the compressed input bytes and that
-   all sizing arguments are caller-trusted (lands in §1.4/§1.7). *(maps inferred:
-   trust boundary)*
-2. Confirm `contrib/` is unsupported for security purposes and reports there are
-   `OUT-OF-MODEL: unsupported-component` (lands in §1.3).
-3. Confirm downstream-well-formedness is explicitly disclaimed for all output
-   grammars (lands in §1.8).
-4. Confirm the caller-trusted classification of `next_out`/`windowBits` in the
-   §1.7 table is complete (lands in §1.7).
-5. Confirm no additional side-effects beyond those listed in §1.5 (lands in §1.5).
+- **Q1** — Is the untrusted surface exactly the compressed input bytes, with
+  every sizing argument caller-trusted?
+  - Proposed answer: yes.
+  - Lands in: §1.4 and the §1.7 trust table.
+- **Q2** — Is `contrib/` unsupported for security purposes?
+  - Proposed answer: yes; reports there close as
+    `OUT-OF-MODEL: unsupported-component`.
+  - Lands in: §1.3.
+- **Q3** — Is downstream well-formedness disclaimed for every output grammar?
+  - Proposed answer: yes; output is exactly as untrusted as its input.
+  - Lands in: §1.8, and as a §1.12 disclaimer.
+- **Q4** — Is the caller-trusted classification of `next_out` and `windowBits`
+  complete?
+  - Proposed answer: yes; the caller owns both.
+  - Lands in: §1.7.
+- **Q5** — Are there host side-effects beyond those listed in §1.5?
+  - Proposed answer: no — no sockets, child processes, or signal handlers, and
+    no filesystem access outside the gzip file API.
+  - Lands in: §1.5.
 
-## 1.19 Machine-readable companion
+## 1.19 Machine-readable companions
 
 The repository-root `threat-model.yaml` is a schema-v2 derived index bound to
-the SHA-256 of this prose. The prose remains canonical and the sidecar is
-regenerated after every prose change.
+the SHA-256 of this prose. Beside it, `threat-model.json` is a flat export of
+the same model for consumers of the repository report schema; it is lossy by
+design and carries no triage precedence. The prose remains canonical and both
+companions are regenerated after every prose change. Authority order: prose,
+then YAML, then JSON.

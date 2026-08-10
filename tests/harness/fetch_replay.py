@@ -44,6 +44,10 @@ from pathlib import Path
 _HARNESS = Path(__file__).resolve().parent
 _REPO = _HARNESS.parents[1]
 
+# Reuse the SSRF/redirect guard rather than growing a second copy of it.
+sys.path.insert(0, str(_REPO))
+from fetch_security_context import _OPENER  # noqa: E402
+
 _INVALID_LABELS = {"invalid", "wontfix", "won't fix", "not a bug", "duplicate",
                    "works as intended", "by design", "question", "support"}
 
@@ -106,35 +110,59 @@ def slugify(text: str) -> str:
 # Network layer (build-time only)
 # --------------------------------------------------------------------------
 class _Http:
+    """Token-carrying GitHub/OSV client.
+
+    Requests go through the shared redirect guard from
+    ``fetch_security_context``: it re-validates every redirect hop against the
+    public-endpoint rules and drops the ``Authorization`` header when a redirect
+    crosses to another host, so the GitHub token cannot be carried off
+    api.github.com by a redirect.
+    """
+
     def __init__(self, token: str = ""):
         self.token = token
 
     def get_json(self, url: str) -> dict:
-        req = urllib.request.Request(url, headers=self._headers())
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        req = urllib.request.Request(url, headers=self._headers(url))
+        with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             return json.loads(resp.read().decode("utf-8"))
 
     def get_json_list(self, url: str) -> list:
-        req = urllib.request.Request(url, headers=self._headers())
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+        req = urllib.request.Request(url, headers=self._headers(url))
+        with _OPENER.open(req, timeout=30) as resp:  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
         return data if isinstance(data, list) else []
 
-    def get_text(self, url: str) -> str:
-        req = urllib.request.Request(url, headers=self._headers(text=True))
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
-            return resp.read().decode("utf-8", errors="replace")
+    def _headers(self, url: str) -> dict:
+        """Per-request headers; the GitHub token is scoped to api.github.com.
 
-    def _headers(self, text: bool = False) -> dict:
+        This client also fetches OSV records from api.osv.dev, which must
+        never see the GITHUB_TOKEN.
+        """
         h = {"User-Agent": "threat-model-replay-fetcher"}
-        if self.token:
-            h["Authorization"] = f"Bearer {self.token}"
-        h["Accept"] = "text/plain" if text else "application/vnd.github+json"
+        if urllib.parse.urlsplit(url).hostname == "api.github.com":
+            h["Accept"] = "application/vnd.github+json"
+            if self.token:
+                h["Authorization"] = f"Bearer {self.token}"
+        else:
+            h["Accept"] = "application/json"
         return h
 
 
 def _repo_slug(repo_url: str) -> str:
-    return urllib.parse.urlparse(repo_url).path.strip("/")
+    """``https://github.com/owner/name`` -> ``owner/name``, API-path safe.
+
+    The slug is interpolated into api.github.com paths, so it must not be able
+    to carry the request somewhere else: a value with ``..`` segments could
+    climb out of ``/repos/``, and ``?``/``#`` could append a query or fragment.
+    """
+    path = urllib.parse.urlparse(repo_url).path.strip("/")
+    if path.endswith(".git"):
+        path = path[: -len(".git")]
+    parts = [p for p in path.split("/") if p]
+    if len(parts) != 2 or any(p in (".", "..") for p in parts):
+        raise ValueError(f"expected a repo URL of the form host/owner/name, got: {repo_url}")
+    return "/".join(urllib.parse.quote(p, safe="") for p in parts)
 
 
 def _parent_sha(http: _Http, repo_slug: str, sha: str) -> str:
@@ -213,7 +241,8 @@ def build_dataset(project: str, sources: dict, out_dir: Path,
     for v in sources["vulns"]:
         vid = v["id"]
         rid = slugify(f"{project}-{vid}")
-        osv = http.get_json(f"https://api.osv.dev/v1/vulns/{vid}")
+        osv = http.get_json(
+            "https://api.osv.dev/v1/vulns/" + urllib.parse.quote(str(vid), safe=""))
         commits = osv_fix_commits(osv)
         fix_commit = commits[0] if commits else ""
         parent = _parent_sha(http, repo_slug, fix_commit) if fix_commit else ""

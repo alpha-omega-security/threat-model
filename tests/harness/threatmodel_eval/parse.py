@@ -32,6 +32,9 @@ _HEDGE = re.compile(
 )
 # The §1.1 draft-confidence tally. The fourth "/ N assumption" term is appended
 # only when the model uses (assumption) tags (see output-structure.md §1.1).
+# Longest body that can still be *only* a "Not applicable — <reason>" marker.
+# Generous enough for a wrapped one-sentence reason, far short of real content.
+_NA_MAX_CHARS = 300
 _CONFIDENCE = re.compile(
     r"(\d+)\s*documented\s*/\s*(\d+)\s*maintainer\s*/\s*(\d+)\s*inferred"
     r"(?:\s*/\s*(\d+)\s*assumption)?",
@@ -47,7 +50,30 @@ class Section:
 
     @property
     def is_na(self) -> bool:
-        return bool(re.search(r"not applicable", self.body, re.IGNORECASE))
+        """Is this section explicitly marked Not applicable?
+
+        Only the section's *first* non-blank line counts. A substring search
+        over the whole body silently marks a substantive section N/A the moment
+        it says "not applicable" about one row -- §1.10 in particular invites
+        "Not applicable: this project is not distributed" mid-section -- and an
+        N/A section is skipped by the sidecar projection-coverage check, so the
+        sidecar could then omit that section's records entirely.
+        """
+        paragraphs = [p for p in re.split(r"\n\s*\n", self.body) if p.strip()]
+        if len(paragraphs) != 1:
+            return False
+        only = " ".join(paragraphs[0].split())
+        # A marker followed by substantive prose is the commoner authoring error
+        # than a buried mention, and it fails open the same way. Requiring one
+        # short single-sentence paragraph catches both -- including the variant
+        # with no blank line after the marker -- while still allowing the reason
+        # to wrap across source lines.
+        if len(only) > _NA_MAX_CHARS:
+            return False
+        if len(re.split(r"(?<=[.!?])\s+(?=[A-Z(])", only)) > 1:
+            return False
+        return bool(re.match(r"(?:>\s*)?[*_]{0,2}not applicable\b", only,
+                             re.IGNORECASE))
 
     @property
     def substantive(self) -> bool:

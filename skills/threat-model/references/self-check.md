@@ -16,15 +16,33 @@ sidecar + backtest specialists have reported.
 - [ ] The header records **generation metadata** — producing model/agent +
       version, effort level, and the plugins/skills actually used — or marks the
       model human-authored; the sidecar's `generation` block matches.
-- [ ] Every *(inferred)* and *(assumption)* tag has a matching item in §1.18,
+- [ ] Every **inferred** and **assumption** tag has a matching item in §1.18,
       and every item states a proposed answer. (Edge-case probes of
-      *(documented)* claims and meta/ownership questions without an
+      **documented** claims and meta/ownership questions without an
       inferred/assumption backing are permitted.)
-- [ ] Demonstrably-absent guarantees are recorded as *(documented)* §1.12
+- [ ] §1.18 is a **list**, not a table, and every `QN` referenced in the body
+      resolves to a question here. A tabled §1.18 parses to zero Q-IDs and
+      dangles every body reference at once. Prefer the explicit
+      `- **Q1** — …` form.
+- [ ] No prose names a tag kind in tag syntax. Kinds mentioned as vocabulary are
+      **bold**; every parenthesized tag carries a source, date, or `QN`.
+- [ ] A section marked `Not applicable` says so on its first line and nowhere
+      else; substantive sections state what is absent in plain words.
+- [ ] Demonstrably-absent guarantees are recorded as **documented** §1.12
       disclaimers, not `unresolved` rows; `unresolved` is reserved for
       dimensions where a guarantee plausibly exists but was not confirmed.
-- [ ] No closing disposition is licensed by an *(inferred)* claim, regardless
-      of model status. An *(assumption)* licenses a close only under `relaxed`
+- [ ] Every **documented** tag cites a **locator**, not a bare filename — file
+      plus function/macro, a named doc section, or a short quoted phrase.
+- [ ] Absence claims are bounded: an absent *guarantee* is a §1.12 disclaimer,
+      but an absent *behaviour* found by scanning is a §1.5 **assumption** (or
+      **inferred** where the scan could not be exhaustive, naming the hole). No
+      disclaimer generalizes past the component, family, or dimension its cited
+      source actually names.
+- [ ] No unratified §1.11 property — **inferred** or **assumption** — carries a
+      `security-critical` tier; any such candidate is an `unresolved` matrix row
+      plus a §1.18 choice question.
+- [ ] No closing disposition is licensed by an **inferred** claim, regardless
+      of model status. An **assumption** licenses a close only under `relaxed`
       policy, only for a low-blast-radius route, and never a security-critical
       `property-disclaimed`, `KNOWN-NON-FINDING`, or `dependency-contract`. An
       accepted model has zero inferred and zero assumption claims; any remaining
@@ -70,6 +88,20 @@ sidecar + backtest specialists have reported.
 - [ ] Every §1.11 property carries a violation symptom and a severity tier;
       resource properties state a threshold.
 - [ ] §1.15 (known non-findings) is populated or marked N/A with a reason.
+- [ ] Every §1.15 entry obeys the four §1.15 rules: discharged by a stable claim
+      ID in this document (never by a process or reporting-etiquette statement);
+      matched on the behaviour of the code and **never** on the reporter's
+      evidence (no reproducer, no demonstrated reachability); naming a symptom
+      or attack class alongside its component, with no entry scoped to "any
+      in-scope family"; and discharged by a claim whose own component set covers
+      the entry. An entry that reduces to "out of scope", "unsupported build",
+      or "dependency root cause" carries that `OUT-OF-MODEL` label instead.
+- [ ] Every §1.12 disclaimer states its conditions/boundary and a tier; no tier
+      cell is blank. Triage fails closed on a blank, so an untiered disclaimer
+      escalates every report it should have answered.
+- [ ] The §1.1 quick-start ends with the provenance gate, and the model uses the
+      `closed` / `provisional` / `escalated` status vocabulary. An escalated
+      finding keeps its disposition and is not recorded as a `MODEL-GAP`.
 - [ ] §1.17 enumerates the closed disposition set, each citing its licensing
       section, including `dependency-contract`; the all-status closure
       constraint (inferred escalates; assumption governed by the triage policy;
@@ -79,6 +111,23 @@ sidecar + backtest specialists have reported.
 - [ ] The phase-3.6 backtest was performed: the historical corpus routed with
       each item landing on exactly one disposition, and the results (corpus size,
       revisions triggered) are recorded in the header.
+- [ ] The §1.1 backtest placeholder `_pending phase 3.6_` is gone, replaced by
+      real figures — corpus and cluster counts, the real-versus-synthesized
+      split, the disposition histogram, and the fail-safe figure (how many
+      historically-fixed items route to a closing disposition — target zero). A corpus with
+      no real historical items says so in phase 3.6's verbatim wording rather
+      than presenting synthesized cases as history.
+- [ ] **No corpus item that the project actually fixed routes to a closing
+      disposition.** This is the one blocking backtest outcome: an
+      over-escalating model wastes maintainer time, an over-closing one answers
+      a live vulnerability with "not a bug".
+- [ ] Any §1.12 disclaimer or §1.3 scope line added *in response to* a backtest
+      routing is still true of the project as it is, cites a real source, and
+      stays inside the scope that source covers. Widening a disclaimer to clear
+      a `MODEL-GAP` is the cheapest way to pass this gate and the surest way to
+      make the model worse.
+- [ ] §1.11 carries 2–4 de-identified worked routing examples, **at least one
+      routing `VALID`**, and they carry no CVE IDs, reporter names, or dates.
 - [ ] Backtest coverage is stratified across every in-scope component family and
       applicable contract dimension; large corpora were clustered by sink and
       attack class, with every cluster represented.
@@ -98,6 +147,21 @@ sidecar + backtest specialists have reported.
       closure-driving parameter, output invariant, component, adversary,
       host-side-effect claim, dependency, build condition, property, and known
       non-finding, plus the canonical first-match disposition order.
+- [ ] An orchestrated run also emits `threat-model.json` conforming to
+      `schema.json`, regenerated alongside the sidecar after the last prose
+      change. Authority order: prose > yaml > json; the JSON is an export, not
+      a triage input.
+- [ ] The JSON validates against `schema.json`, its `dispositions` array is
+      exactly the nine schema values verbatim, and its `commit` is the real sha
+      of the modeled tree, not a placeholder.
+- [ ] No JSON record upgrades provenance: nothing whose sidecar provenance is
+      **inferred** or **assumption** surfaces as `documented`, and `confidence`
+      is the collapsed sidecar count (documented + maintainer,
+      inferred + assumption).
+- [ ] Every JSON known non-finding names its in-scope components and discharged
+      symptom in `why_safe`, and its `cites` resolves to a real entry in the
+      same document. The JSON drops the sidecar's scoping fields; either
+      `why_safe` carries them or the entry can suppress everything.
 
 ## Gate 4 — Style and scope
 

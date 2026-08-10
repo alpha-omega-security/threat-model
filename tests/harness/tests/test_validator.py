@@ -8,30 +8,40 @@ Proves two things:
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 
 import mutate
 from threatmodel_eval import (
-    Model, load_sidecar, run_prose_checks, run_sidecar_checks, validate,
+    Model, load_sidecar, run_json_checks, run_prose_checks,
+    run_sidecar_checks, validate,
 )
+from threatmodel_eval import parse
 
 
-def _validate(text: str, sidecar: dict):
+def _validate(text: str, sidecar: dict, json_report: dict):
     model = Model.from_text(text)
     report = run_prose_checks(model)
     report.extend(run_sidecar_checks(sidecar, model).findings)
+    report.extend(run_json_checks(json_report, sidecar, model).findings)
     return report
 
 
+def _golden_json() -> dict:
+    return json.loads(mutate.GOLDEN_JSON.read_text(encoding="utf-8"))
+
+
 def test_golden_passes_all_checks():
-    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR)
+    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR,
+                      json_report_path=mutate.GOLDEN_JSON)
     assert report.ok, "golden fixture must have zero error failures:\n" + report.render()
     assert not report.errors
 
 
 def test_golden_has_no_warnings():
-    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR)
+    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR,
+                      json_report_path=mutate.GOLDEN_JSON)
     assert not report.warnings, "golden should be warning-clean:\n" + report.render()
 
 
@@ -127,7 +137,9 @@ def test_contract_dimension_matrix_accepts_full_reference_names():
 
 @pytest.mark.parametrize("case", mutate.build_cases(), ids=lambda c: c.name)
 def test_mutation_is_caught_by_owning_check(case: mutate.MutationCase):
-    report = _validate(case.model_text, case.sidecar)
+    json_report = (case.json_report if case.json_report is not None
+                   else _golden_json())
+    report = _validate(case.model_text, case.sidecar, json_report)
     assert not report.ok, f"{case.name}: mutation slipped through validation"
     error_ids = {f.check_id for f in report.errors}
     assert error_ids == case.expected_failures, (
@@ -138,7 +150,8 @@ def test_mutation_is_caught_by_owning_check(case: mutate.MutationCase):
 
 def test_all_declared_checks_exist_on_golden():
     """Every expected_failures check_id must be a real check that passes on golden."""
-    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR)
+    report = validate(mutate.GOLDEN_MODEL, mutate.GOLDEN_SIDECAR,
+                      json_report_path=mutate.GOLDEN_JSON)
     known = {f.check_id for f in report.findings}
     declared = set().union(*(c.expected_failures for c in mutate.build_cases()))
     missing = declared - known
@@ -176,3 +189,26 @@ def test_open_question_ids_recognizes_all_permitted_formats(body):
     assert model.open_question_ids() == {"Q1", "Q2"}
     assert model.open_question_count() == 2
 
+
+
+# --------------------------------------------------------------------------- #
+# Section.is_na — the N/A marker gates the sidecar projection-coverage check,
+# so a false positive here silently excuses a whole section from the sidecar.
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("name,body,expected", [
+    ("bare marker", "Not applicable — zlib is not a distributed system.", True),
+    ("wrapped reason", "Not applicable — zlib is a library, not a\ndistributed system.", True),
+    ("bold marker", "**Not applicable** — folded into §1.7.", True),
+    ("no trailing period", "Not applicable — no externally consumed output", True),
+    ("marker then body", "Not applicable — see §1.7.\n\nThe attacker controls the "
+                         "compressed input bytes and crafts arbitrary streams.", False),
+    ("marker then prose, one paragraph",
+     "Not applicable — see §1.7. The attacker controls the compressed bytes "
+     "and crafts arbitrary streams.", False),
+    ("buried mention", "The attacker controls the bytes.\n\nByzantine "
+                       "participants: not applicable — zlib is not distributed.", False),
+    ("first bullet of a list", "- Not applicable to row 3.\n- The attacker "
+                               "controls the compressed bytes.", False),
+])
+def test_section_is_na_only_for_a_whole_body_marker(name, body, expected):
+    assert parse.Section("10", "1.10 Adversary model", body).is_na is expected, name

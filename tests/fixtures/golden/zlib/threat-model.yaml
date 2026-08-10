@@ -1,9 +1,9 @@
 # threat-model.yaml — derived index; the prose threat model is canonical.
 schema: threat-model-sidecar/v2
 project: zlib
-prose_version: "docs/threat-model.md@sha256:d43a36b38e6a52fc1564419bae9e98fcf302217657cf2d80a6cf7a22c8ea237b"
+prose_version: "docs/threat-model.md@sha256:915aad1a1a1a5e33b7d4ac7b2bdbd27d8cef8d520d6dc16e8af5a594d63d3621"
 model_status: unratified-draft
-confidence: {documented: 59, maintainer: 0, inferred: 8}
+confidence: {documented: 68, maintainer: 0, inferred: 7}
 
 components:
   - name: core-inflate
@@ -168,6 +168,7 @@ build_flags:
 
 properties_claimed:
   - {id: memory-safety-untrusted-input, kind: memory-safety, components: [core-inflate, core-deflate], tier: security-critical, conditions: "any input on a supported platform", violation_symptoms: [crash, oob-read, oob-write], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: integrity-check-on-decode, kind: integrity, components: [core-inflate], tier: security-critical, conditions: "caller has not called inflateValidate(strm, 0)", violation_symptoms: [wrong-output], provenance: {kind: documented, source: "zlib manual, inflate check-value description"}}
   - {id: output-bound-honored, kind: resource-bound, components: [core-inflate, gzip-file-api], tier: security-critical, conditions: "single call with valid output buffer", violation_symptoms: [buffer-overflow], provenance: {kind: documented, source: "inflate API contract"}}
   - {id: termination, kind: availability, components: [core-inflate], tier: security-critical, conditions: "valid or invalid input", violation_symptoms: [hang, infinite-loop], provenance: {kind: documented, source: "zlib manual"}}
   - {id: stream-lifecycle, kind: correctness, components: [core-inflate, core-deflate, gzip-file-api], tier: correctness-only, conditions: "documented init/end or open/close sequence", violation_symptoms: [invalid-state], provenance: {kind: documented, source: "zlib manual"}}
@@ -175,13 +176,13 @@ properties_claimed:
   - {id: configured-window-memory-bound, kind: resource-bound, components: [core-inflate, core-deflate], tier: correctness-only, conditions: "internal window allocation is bounded by configured MAX_WBITS", violation_symptoms: [allocation-exceeds-configured-bound], provenance: {kind: documented, source: "zlib build documentation"}}
 
 properties_disclaimed:
-  - {id: confidentiality-integrity-authenticity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported configurations", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: crc-as-mac, components: [gzip-file-api], conditions: "all supported configurations", false_friend: true, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: decompression-bomb-resistance, components: [core-inflate, gzip-file-api], conditions: "no caller output budget", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: failure-state-atomicity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "operation returns failure", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: trusted-callback-safety, components: [core-inflate, core-deflate], conditions: "caller allocator violates its contract", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: resource-budgeting, components: [core-deflate], conditions: "caller-selected memory level", false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
-  - {id: shared-stream-thread-safety, components: [gzip-file-api], conditions: "shared handle without synchronization", false_friend: false, provenance: {kind: documented, source: "zlib FAQ"}}
+  - {id: confidentiality-integrity-authenticity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "all supported configurations", tier: security-critical, false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: crc-as-mac, components: [gzip-file-api], conditions: "all supported configurations", tier: security-critical, false_friend: true, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: decompression-bomb-resistance, components: [core-inflate, gzip-file-api], conditions: "no caller output budget", tier: security-critical, false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: failure-state-atomicity, components: [core-inflate, core-deflate, gzip-file-api], conditions: "operation returns failure", tier: correctness-only, false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: trusted-callback-safety, components: [core-inflate, core-deflate], conditions: "caller allocator violates its contract", tier: security-critical, false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: resource-budgeting, components: [core-deflate], conditions: "caller-selected memory level", tier: correctness-only, false_friend: false, provenance: {kind: documented, source: "zlib manual"}}
+  - {id: shared-stream-thread-safety, components: [gzip-file-api], conditions: "shared handle without synchronization", tier: security-critical, false_friend: false, provenance: {kind: documented, source: "zlib FAQ"}}
 
 downstream_responsibilities:
   - {id: cap-decompressed-output, component: core-inflate, statement: "cap total decompressed output", enforces: [decompression-bomb-resistance], provenance: {kind: documented, source: "zlib manual"}}
@@ -189,13 +190,13 @@ downstream_responsibilities:
   - {id: serialize-shared-stream, component: gzip-file-api, statement: "synchronize shared stream access", enforces: [shared-stream-thread-safety], provenance: {kind: documented, source: "zlib FAQ"}}
 
 known_misuses:
-  - {id: crc-used-as-mac, component: gzip-file-api, pattern: "using CRC-32 for authentication", safer_alternative: "use a MAC", provenance: {kind: documented, source: "zlib manual"}}
-  - {id: unbounded-decompression, component: core-inflate, pattern: "decompressing without an output cap", safer_alternative: "enforce an output budget", provenance: {kind: documented, source: "zlib manual"}}
+  - {id: crc-used-as-mac, components: [gzip-file-api], pattern: "using CRC-32 for authentication", safer_alternative: "use a MAC", provenance: {kind: documented, source: "zlib manual"}}
+  - {id: unbounded-decompression, components: [core-inflate], pattern: "decompressing without an output cap", safer_alternative: "enforce an output budget", provenance: {kind: documented, source: "zlib manual"}}
 
 known_non_findings:
-  - {id: fuzzer-unbounded-memory, component: core-inflate, tool_pattern: "OOM on crafted stream without an output cap", conditions: "no output budget and no memory-safety violation", discharged_by: [decompression-bomb-resistance], provenance: {kind: documented, source: "zlib manual"}}
-  - {id: crc-forgery, component: gzip-file-api, tool_pattern: "CRC/Adler collision or forgery report", conditions: "report assumes checksum authenticity rather than memory corruption", discharged_by: [crc-as-mac], provenance: {kind: documented, source: "zlib manual"}}
-  - {id: msan-uninitialized-value, component: core-deflate, tool_pattern: "MSan/Valgrind use-of-uninitialized-value in the deflate match loop", conditions: "value never affects output and no memory-safety violation is shown", discharged_by: [memory-safety-untrusted-input], provenance: {kind: documented, source: "zlib FAQ"}}
+  - {id: fuzzer-unbounded-memory, symptom: unbounded-allocation, components: [core-inflate], tool_pattern: "OOM on crafted stream without an output cap", conditions: "no output budget and no memory-safety violation", discharged_by: [decompression-bomb-resistance], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: crc-forgery, symptom: integrity-bypass, components: [gzip-file-api], tool_pattern: "CRC/Adler collision or forgery report", conditions: "report assumes checksum authenticity rather than memory corruption", discharged_by: [crc-as-mac], provenance: {kind: documented, source: "zlib manual"}}
+  - {id: msan-uninitialized-value, symptom: uninitialized-read, components: [core-deflate], tool_pattern: "MSan/Valgrind use-of-uninitialized-value in the deflate match loop", conditions: "the value never affects deflate output and the read stays inside a zlib allocation", discharged_by: [memory-safety-untrusted-input], provenance: {kind: documented, source: "zlib FAQ"}}
 
 dispositions:
   - VALID
