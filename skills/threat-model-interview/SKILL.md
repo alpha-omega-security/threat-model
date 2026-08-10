@@ -82,7 +82,7 @@ whatever the project's cadence suggests). When it expires:
   prominently, and §1.18 intact.
 - **Closure constraint (all statuses):** a disposition that closes a report against the
   reporter (`OUT-OF-MODEL: *`, `BY-DESIGN: *`, `KNOWN-NON-FINDING`) may **not**
-  rest on *(inferred)* claims. An *(assumption)* closes only under the declared
+  rest on **inferred** claims. An **assumption** closes only under the declared
   `relaxed` triage policy, only a low-blast-radius route, and never a
   security-critical property, `KNOWN-NON-FINDING`, or `dependency-contract`. A
   report that would otherwise be closed on inferred or ungoverned-assumption
@@ -94,6 +94,6 @@ whatever the project's cadence suggests). When it expires:
 If a question is unanswered, its claim **stays *(inferred, QN)*** — or
 *(assumption, QN)* where a conservative default is clearly safe — with an open
 §1.18 item; do not invent a maintainer position. Answering a wave **promotes**
-both *(inferred)* and *(assumption)* claims to *(maintainer, YYYY-MM)*. A draft
+both **inferred** and **assumption** claims to *(maintainer, YYYY-MM)*. A draft
 that is mostly unratified is not ready to publish; a draft with none is fully
 reviewed or overclaiming.

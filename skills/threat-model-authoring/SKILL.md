@@ -56,27 +56,47 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   "documented in purpose", "generally known").
 - **Prefer documented disclaimers to open questions.** When code + docs show a
   guarantee is simply not made (no thread-safety, no resource bound, no failure
-  atomicity), record it as a *(documented)* §1.12 disclaimer — the absence is
-  verifiable. Reserve `unresolved` / *(inferred)* for dimensions where a
+  atomicity), record it as a **documented** §1.12 disclaimer — the absence is
+  verifiable. Reserve `unresolved` / **inferred** for dimensions where a
   guarantee plausibly exists but was not confirmed. This is the main lever for
-  cutting `MODEL-GAP` without weakening closure safety.
+  cutting `MODEL-GAP` without weakening closure safety. It is also the easiest
+  thing in the model to overdo, so keep it inside the three bounds in
+  `output-structure.md`: an absent *guarantee* is a disclaimer, but an absent
+  *behaviour* you scanned for is a §1.5 assumption; a disclaimer carries only as
+  far as the source you cite actually reaches; and a guarantee "plausibly
+  exists" when the project has historically fixed reports of that class. Give
+  every disclaimer a boundary and a tier — triage fails closed on a missing
+  tier, so an untiered disclaimer escalates every report it should have
+  answered.
+- **An unratified property — **inferred** or **assumption** — never carries a
+  `security-critical` tier.** If the
+  guarantee is unratified, leave the matrix row `unresolved` and put the choice
+  to the maintainer in §1.18. Publishing an unratified security-critical
+  guarantee is worse than publishing a gap: integrators build on §1.11.
 - **Assumption vs inferred.** Use *(assumption, QN)* for a conservative default
   you are willing to act on now (it may close low-blast-radius reports under the
   `relaxed` policy); use *(inferred, QN)* when the question is genuinely open
-  (escalate-only under every policy). Do not relabel a guess as *(documented)* to
+  (escalate-only under every policy). Do not relabel a guess as **documented** to
   make it close — that launders the author's inference into the project's
   authority and is forbidden.
-- Every *(inferred)* and *(assumption)* tag has a matching §1.18 item that
+- Every **inferred** and **assumption** tag has a matching §1.18 item that
   **states a proposed answer**. Mapping is one-directional: inferred/assumption →
   question required; extra edge-case/meta questions are allowed.
 - Keep the header's **draft-confidence count** (documented / maintainer /
   inferred, plus assumption when used) current, and declare the **triage
-  policy** (`strict` default, or `relaxed`). A draft with no *(inferred)* /
-  *(assumption)* is fully reviewed or overclaiming; mostly unratified is not
+  policy** (`strict` default, or `relaxed`). A draft with no **inferred** /
+  **assumption** is fully reviewed or overclaiming; mostly unratified is not
   ready to publish.
 - **Retain tags in the published version** — a closed report cites *(maintainer,
   2025-03)*, and bare prose is not defensible. Footnotes are fine; keep the chain
   of authority intact.
+- **A citation you cannot fill is fixed by opening the file, never by deleting
+  the column.** When a Provenance cell resists — you know the claim is right but
+  cannot name a locator — read the source until you can, or tag the row
+  **inferred** with a §1.18 question. Dropping the column keeps every claim's
+  authority while removing its evidence, and it is invisible in review: the
+  section still looks complete. §1.7, §1.8, §1.10 and §1.15 all require the
+  column for this reason.
 
 ## Section-specific must-dos
 
@@ -88,10 +108,27 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   readers can decode the jargon; use the reference
   [glossary](../threat-model/references/glossary.md) as the source to inline or
   copy from, and never link that skills-repo path from the published model — it
-  will not resolve in the target repo), draft-confidence count, backtest note, sibling
+  will not resolve in the target repo), draft-confidence count, sibling
   models, **generation metadata** (producing model/agent + version, effort level,
   and the plugins/skills actually used, or "human-authored"), and the boxed
   **triager quick-start** whose steps reference sections that actually exist.
+  For the **backtest note**, on the *initial* 3.5 draft write exactly
+  `- **Backtest note**: _pending phase 3.6_` and nothing more. Drafting is phase
+  3.5; you have not run the backtest and cannot know its result. Phase 3.6
+  replaces the placeholder with real figures, and self-check Gate 3 fails if the
+  placeholder survives to publication — which is the point. A drafted-in note
+  saying the backtest passed is how a model comes to certify a gate that never
+  ran.
+  **On any later pass, never overwrite a real backtest note and never author
+  one yourself.** Authoring runs again in the 3.7 revision loop, normally
+  *after* 3.6, so re-applying the placeholder here would delete the one figure
+  set the gate exists to check and fail the model on a gate it had passed.
+  The quick-start must open with the triage-policy step and close with the
+  **provenance gate** — which tag may close, which must escalate, and the
+  security-critical and silence floors — plus the `closed` / `provisional` /
+  `escalated` status vocabulary. A box that routes to a disposition without
+  gating the close is the single most common way a published model licenses a
+  close it is not entitled to make.
 - **§1.7** — a *table*, not prose; mark any untabled remainder from the surface
   timebox. Include control kinds and the per-family contract-dimension matrix.
   Every matrix row is claimed, disclaimed, N/A with reason, or unresolved.
@@ -102,7 +139,10 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   as untrusted as input" one-liner where it applies; promote structural output
   invariants to §1.11.
 - **§1.11** — each property carries a **violation symptom** and a **severity
-  tier**; resource properties state a **threshold**, not just a direction.
+  tier**; resource properties state a **threshold**, not just a direction. The
+  section closes with a `### Worked routing examples` table of 2–4
+  de-identified rows, **at least one routing `VALID`**, exported by phase 3.6.
+  On a re-run, preserve what 3.6 exported rather than re-deriving it.
 - **§1.12** — at least as substantive as §1.11; call out **false friends**
   (CRC≠MAC, hash≠collision-resistant, PRNG≠CSPRNG, sandbox≠isolation) and name
   the **well-known attack classes** for this category (compression bombs, XXE,
@@ -116,8 +156,8 @@ The deliverable deliberately mixes **both kinds of content in one document**:
   Optionally add the Mermaid triage-decision flowchart when it aids a non-expert
   triager — it must mirror the precedence order exactly, not introduce a second
   rule.
-- **Closure safety** — an *(inferred)* claim never licenses a closing
-  disposition, regardless of status. An *(assumption)* closes only what the
+- **Closure safety** — an **inferred** claim never licenses a closing
+  disposition, regardless of status. An **assumption** closes only what the
   declared triage policy permits (`strict`: never; `relaxed`: low-blast-radius
   provisional closes only), and never a security-critical `property-disclaimed`,
   `KNOWN-NON-FINDING`, or `dependency-contract`. An accepted model has no

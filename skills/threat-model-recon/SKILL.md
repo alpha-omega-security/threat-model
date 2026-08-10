@@ -44,7 +44,7 @@ Do a light pass and record hypotheses:
   something: FAQ files, header-file commentary, `NOTES`/`CAVEATS`/`LIMITATIONS`
   docs, issue closures labeled "wontfix"/"by design"/"not a bug", changelog
   entries explaining *why*. These often answer threat-model questions before
-  they are asked. Tag what you find *(documented, exact source)*.
+  they are asked. Tag what you find **documented**, naming the exact source in the tag.
 - **Check for a vendored `security-context.md`** in the working directory. A
   runner may pre-fetch the repository's off-repo public record into this file
   (via `fetch_security_context.py`): published advisories, OSV.dev records,
@@ -54,7 +54,7 @@ Do a light pass and record hypotheses:
   documents (e.g. a commissioned audit report). Treat its entries as
   point-in-time copies of maintainer-authored or maintainer-acknowledged
   public record — mine rulings and advisory text exactly like on-repo sources,
-  citing *(documented, \<url\>)* with the original issue or advisory URL;
+  citing it as **documented** with the original issue or advisory URL in the tag;
   follow homepage references and read them (a maintainer-linked audit is on
   the record); and hand the vulnerability history to phase 3.6 as backtest
   corpus seed material. It is mining input, not project source: per the
@@ -85,6 +85,22 @@ Do a light pass and record hypotheses:
   env), ancillary utilities. Model each at its own trust level, not averaged.
 - **Identify shipped-but-unsupported code** (`contrib/`, `examples/`, `vendor/`,
   `third_party/`, `test/`, demos, generated bindings). Decide in/out explicitly.
+- **Read the build before you decide any of that.** The build system is the
+  truth; the directory layout is a convention, and they disagree more often than
+  they look like they would. Open `configure`, `Makefile*`, `CMakeLists.txt`, or
+  the packaging manifest and list the source files that actually land in the
+  shipped artifact — including default-on, platform-conditional ones. zlib is
+  the standing example: `configure` defaults `enable_crcvx=1` and on s390x
+  compiles `contrib/crc32vx/crc32_vx.c` into libz, where the public `crc32()`
+  dispatches to it. A "samples" directory is in the library.
+  Getting this wrong fails **open** — `OUT-OF-MODEL: unsupported-component` is
+  second in the §1.17 precedence order, so a real memory-safety report in code
+  that ships closes as out of scope before anything else is considered. So:
+  a file the supported build compiles is in scope wherever it lives; when a
+  mostly-excluded directory is partly built in, §1.3 names the exact path and
+  the platform or flag that pulls it in, and §1.6 carries that flag; and every
+  "no third-party code" or "zero dependencies" claim is checked against the
+  build's file list rather than the tree.
 - Identify languages, runtimes, and obvious trust boundaries (process, FFI,
   network, filesystem).
 - Note what the project clearly *is not* ("a parser, not a network service") —
@@ -97,12 +113,12 @@ Do a light pass and record hypotheses:
 
 Many projects ship a `SECURITY.md` that is part disclosure process (out of
 scope) and part **embedded threat model** — the single highest-authority
-*(documented)* source, since it is maintainer policy that already survived
+**documented** source, since it is maintainer policy that already survived
 public review. When such content exists:
 
 - **Do not re-derive it.** Lift every trust statement, vuln/non-vuln example,
   and resource threshold directly into the matching section with a citation, tagged
-  *(documented)*. Tagging something *(inferred)* that `SECURITY.md` already
+  **documented**. Tagging something **inferred** that `SECURITY.md` already
   states means the orient pass was skipped.
 - **The output must be a strict superset.** Nothing the existing document
   asserts about scope may be silently dropped, weakened, or contradicted. A
@@ -130,7 +146,7 @@ Hand back to the orchestrator:
    point, touches-outside-process?, in/out of model.
 3. **Out-of-scope inventory** (draft of §1.3) — shipped-but-unsupported code +
    reason.
-4. **Mined maintainer positions** — each tagged *(documented, exact source)*,
+4. **Mined maintainer positions** — each tagged **documented** with its exact source,
    routed to its target section.
 5. **`SECURITY.md` back-map** + the coexistence question for wave 1.
 6. **Split recommendation** — one model or several, with reason.
@@ -141,10 +157,10 @@ or *(assumption, QN)* where a conservative default is clearly safe.
 
 **Mine before you infer.** Every fact you can attribute to a maintainer-authored
 source (README, Javadoc/`package-info`, header comments, manpage, FAQ, changelog
-rationale, issue rulings) is *(documented)* and does not escalate. The recon
+rationale, issue rulings) is **documented** and does not escalate. The recon
 pass is the cheapest place to convert would-be inferences into documented
-claims; a draft that is mostly *(inferred)* usually means this mining was thin,
+claims; a draft that is mostly **inferred** usually means this mining was thin,
 not that the project is genuinely undocumented. Where the docs verifiably make
 **no** guarantee (no thread-safety statement, no resource bound), that absence is
-itself *(documented)* — carry it forward as a §1.12 disclaimer, not an open
+itself **documented** — carry it forward as a §1.12 disclaimer, not an open
 question.

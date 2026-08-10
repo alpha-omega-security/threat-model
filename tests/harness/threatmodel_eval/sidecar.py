@@ -12,7 +12,7 @@ import re
 from pathlib import PurePosixPath
 from typing import Iterable
 
-from .checks import DISPOSITIONS
+from .checks import DISPOSITIONS, ALL_IN_SCOPE, entry_components
 from .parse import Model
 from .report import Finding, Report
 
@@ -123,6 +123,25 @@ def _contains_inferred_provenance(value) -> bool:
 
 def _f(cid, passed, msg, loc="") -> Finding:
     return Finding(cid, "sidecar", "error", passed, msg, loc)
+
+
+def _entry_scope_ok(item: dict, declared: set[str], *, allow_all: bool) -> bool:
+    """Is this §1.15/§1.14 entry scoped to declared components?
+
+    ``allow_all`` permits the ``all-in-scope`` sentinel. It is allowed for
+    §1.14 misuses, which close nothing, and refused for §1.15 non-findings:
+    those fire first in the precedence order, so an entry that matches
+    everywhere is a universal suppressor — which is exactly what §1.15's
+    "no `any in-scope family` component" rule forbids.
+    """
+    raw = item.get("components")
+    if isinstance(raw, list) and not _string_list(raw, nonempty=True):
+        return False              # a malformed list must not read as narrower
+    comps = entry_components(item)
+    if not comps:
+        return False
+    return all((allow_all and c == ALL_IN_SCOPE) or c in declared
+               for c in comps)
 
 
 def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding]:
@@ -251,9 +270,13 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
     in_components = {c.get("name") for c in components if c.get("scope") == "in"}
     # Every declared component, in- or out-of-scope. sidecar-schema.md mandates
     # an in-scope component only for outputs and contract-dimension rows; §1.13
-    # responsibilities, §1.14 misuses, and §1.15 non-findings may legitimately
-    # concern an out-of-scope surface (e.g. "escalate reliance on an undocumented,
-    # out-of-scope export"), so those records only require a *declared* component.
+    # responsibilities and §1.14 misuses may legitimately concern an
+    # out-of-scope surface (e.g. "escalate reliance on an undocumented,
+    # out-of-scope export"), so those records only require a *declared*
+    # component. §1.15 non-findings are declared-component too, but rule 3 plus
+    # SC.non-finding-discharge-scope effectively confine them to in-scope
+    # surface: an entry that reduces to "the code is out of scope" is an
+    # OUT-OF-MODEL route and keeps that label.
     declared_components = {c.get("name") for c in components}
 
     side_effect_bad = [
@@ -273,6 +296,8 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
     ep_bad: list[str] = []
     control_bad: list[str] = []
     obligation_id_values: list[str] = []
+    # obligation_id -> the set of distinct requirement texts it is bound to.
+    obligation_texts: dict[str, set[str]] = {}
     entry_points = _list(sidecar, "entry_points")
     for ep in entry_points:
         eid = ep.get("id", "?")
@@ -297,18 +322,38 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
                 control_bad.append(f"{eid}.{p.get('name', '?')}")
             if enforce and not _explicit_no_obligation(enforce) and p.get("obligation_id"):
                 obligation_id_values.append(p["obligation_id"])
+                obligation_texts.setdefault(p["obligation_id"], set()).add(
+                    " ".join(str(enforce).split()).casefold())
             if not _valid_provenance(p.get("provenance")):
                 ep_bad.append(f"{eid}.{p.get('name', '?')} (bad provenance)")
     obligation_ids = set(obligation_id_values)
     ep_ids = [ep.get("id") for ep in entry_points]
     if not all(ep_ids) or len(ep_ids) != len(set(ep_ids)):
         ep_bad.append("entry point IDs must be unique and non-empty")
-    if len(obligation_id_values) != len(obligation_ids):
-        ep_bad.append("obligation IDs must be globally unique")
     yield _f("SC.param-enforce", not ep_bad,
              "every attacker-controllable parameter has caller_must_enforce"
              if not ep_bad else
              f"attacker-controllable params without caller_must_enforce: {ep_bad}")
+
+    # One obligation ID names one obligation, globally. Several entry points may
+    # legitimately *share* an ID when they impose the same requirement -- that is
+    # the shape sidecar-schema.md mandates, precisely so the §1.13 responsibility
+    # that `enforces[]` points at stays whole. What is forbidden is one ID
+    # standing for two different obligations, which silently merges them.
+    #
+    # Reported separately from SC.param-enforce: folded in, this read as a
+    # missing caller_must_enforce, and the repair cloned the obligation per entry
+    # point -- fragmenting the responsibility, which SC.reference-integrity
+    # cannot see because it detects dangling references, never under-coverage.
+    collisions = sorted(oid for oid, texts in obligation_texts.items()
+                        if len(texts) > 1)
+    yield _f("SC.obligation-id-unique", not collisions,
+             "each obligation ID names exactly one obligation" if not collisions
+             else
+             f"one obligation ID used for different obligations: {collisions}. "
+             "IDs are global: give distinct requirements distinct IDs, and let "
+             "entry points that share a requirement share its ID rather than "
+             "cloning it.")
     yield _f("SC.param-control-kinds", not control_bad,
              "every parameter has valid control_kinds" if not control_bad else
              f"parameters with invalid control_kinds: {control_bad}")
@@ -401,6 +446,22 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
              if not pc_bad else
              f"claimed properties missing tier/symptom: {pc_bad}")
 
+    # An inferred guarantee at the CVE tier is a promise the project never made.
+    # §1.11 requires it to stay an `unresolved` matrix row plus a §1.18 choice
+    # question until a maintainer ratifies it -- integrators build on §1.11, so
+    # an unratified security-critical claim is worse than a visible gap.
+    pc_inferred_critical = [
+        p.get("id", "?") for p in claimed
+        if p.get("tier") == "security-critical"
+        and isinstance(p.get("provenance"), dict)
+        and p["provenance"].get("kind") in ("inferred", "assumption")
+    ]
+    yield _f("SC.claimed-inferred-tier", not pc_inferred_critical,
+             "no claimed property is both unratified and security-critical"
+             if not pc_inferred_critical else
+             "unratified (inferred/assumption) claimed properties may not be "
+             f"security-critical (move to §1.18): {pc_inferred_critical}")
+
     # properties_disclaimed
     pd_bad = [p.get("id", "?") for p in disclaimed
               if not isinstance(p.get("false_friend"), bool)
@@ -412,6 +473,19 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
              "every disclaimed property flags false_friend true/false"
              if not pd_bad else
              f"disclaimed properties missing false_friend bool: {pd_bad}")
+
+    # `tier` gates whether an assumption may provisionally close a
+    # property-disclaimed route, and triage fails closed on a missing value.
+    # Without this check an untiered disclaimer silently escalates every
+    # matching report instead of closing it -- or, before the fail-closed fix,
+    # closed reports it had no authority to close.
+    pd_untiered = [p.get("id", "?") for p in disclaimed
+                   if p.get("tier") not in _TIER]
+    yield _f("SC.disclaimed-tier", not pd_untiered,
+             "every disclaimed property carries a security-critical/"
+             "correctness-only tier"
+             if not pd_untiered else
+             f"disclaimed properties missing a valid tier: {pd_untiered}")
 
     # components
     comp_bad: list[str] = []
@@ -562,8 +636,11 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
             if ref not in reference_ids:
                 ref_bad.append(f"responsibility {responsibility.get('id', '?')} -> {ref}")
     for item in _list(sidecar, "known_non_findings"):
+        # `symptom` is required (§1.15 rule 3): an entry identified only by
+        # location is a scope question, which belongs to an OUT-OF-MODEL route
+        # rather than to the precedence-1 suppression list.
         if (not item.get("id") or not item.get("tool_pattern")
-                or item.get("component") not in declared_components
+                or not _entry_scope_ok(item, declared_components, allow_all=False)
                 or not item.get("conditions")
                 or not _string_list(item.get("discharged_by"), nonempty=True)
                 or not _valid_provenance(item.get("provenance"))):
@@ -572,13 +649,59 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
             if ref not in reference_ids:
                 ref_bad.append(f"non-finding {item.get('id', '?')} -> {ref}")
     for misuse in _list(sidecar, "known_misuses"):
-        if (not misuse.get("id") or misuse.get("component") not in declared_components
+        if (not misuse.get("id")
+                or not _entry_scope_ok(misuse, declared_components, allow_all=True)
                 or not misuse.get("pattern") or not misuse.get("safer_alternative")
                 or not _valid_provenance(misuse.get("provenance"))):
             ref_bad.append(f"misuse {misuse.get('id', '?')} provenance")
     yield _f("SC.reference-integrity", not ref_bad,
              "all stable references and provenance resolve" if not ref_bad
              else f"bad stable references: {ref_bad}")
+
+    # §1.15 rule 4: a discharging claim must actually cover the component the
+    # entry matches. Without this, a disclaimer written for one component
+    # silently discharges reports against another -- and because
+    # KNOWN-NON-FINDING is first in the precedence order, that suppression wins
+    # over every scope, configuration, and adversary check below it.
+    scope_bad: list[str] = []
+    for item in _list(sidecar, "known_non_findings"):
+        entry_comps = set(entry_components(item))
+        # At least one discharging reference must be a property, so that this
+        # check has something component-bearing to compare against. §1.7
+        # obligation and §1.3 scope IDs may accompany a property but never
+        # stand alone -- otherwise citing one turns rule 4 off entirely.
+        refs = item.get("discharged_by", []) or []
+        owners = [claimed_by_id.get(r) or disclaimed_by_id.get(r) for r in refs]
+        if not any(o is not None for o in owners):
+            scope_bad.append(
+                f"{item.get('id', '?')} is discharged by no §1.11/§1.12 "
+                f"property (refs: {sorted(refs)})")
+            continue
+        for ref, owner in zip(refs, owners):
+            if owner is None:
+                continue          # accompanying obligation/scope ID
+            owner_comps = set(owner.get("components") or [])
+            uncovered = entry_comps - owner_comps
+            if uncovered:
+                scope_bad.append(
+                    f"{item.get('id', '?')} -> {ref} does not cover "
+                    f"{sorted(uncovered)}")
+    yield _f("SC.non-finding-discharge-scope", not scope_bad,
+             "every known non-finding is discharged by a claim covering its "
+             "components" if not scope_bad else
+             f"known non-findings discharged out of scope: {scope_bad}")
+
+    # §1.15 rule 3: an entry identified only by location is a scope question,
+    # and that is an OUT-OF-MODEL route rather than a precedence-1 suppression.
+    # Kept as its own check so a repair agent is told the field that failed --
+    # folded into SC.reference-integrity it reads as a provenance error.
+    sym_bad = [item.get("id", "?") for item in _list(sidecar, "known_non_findings")
+               if not (isinstance(item.get("symptom"), str)
+                       and item["symptom"].strip())]
+    yield _f("SC.non-finding-symptom", not sym_bad,
+             "every known non-finding names a symptom or attack class"
+             if not sym_bad else
+             f"known non-findings missing a symptom/attack class: {sym_bad}")
 
     id_lists = [claimed, disclaimed, _list(sidecar, "known_non_findings"),
                 _list(sidecar, "known_misuses"),
@@ -600,6 +723,9 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
         "dispositions", "disposition_precedence",
         # optional (defaults to "strict" when omitted); see sidecar-schema.md
         "triage_policy",
+        # optional §1.17 status vocabulary; a closed enum fixed by the spec and
+        # identical in every model, so it is recognized but never required
+        "disposition_statuses",
         # optional §1.1 generation metadata; descriptive only, see sidecar-schema.md
         "generation",
     }

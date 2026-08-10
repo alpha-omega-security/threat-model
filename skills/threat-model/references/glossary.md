@@ -32,7 +32,7 @@ because only some tags are trusted enough to *close* a report against a reporter
 
 | Tag | Plain meaning | Can it close a report? |
 | --- | --- | --- |
-| *(documented, source)* | Stated in the project's own public docs, headers, `SECURITY.md`, or an issue ruling. Names the exact source. | Yes. |
+| *(documented, source)* | Stated in the project's own public docs, headers, `SECURITY.md`, or an issue ruling. Names the exact source — file plus function, a named doc section, or a short quote, not just a filename. | Yes — except a disclaimer that rests only on the docs being *silent*, which never closes a serious issue. |
 | *(maintainer, date)* | A maintainer confirmed it in answer to a modeling question. | Yes. |
 | *(assumption, QN)* | A cautious default the author is willing to act on where the docs are silent — still needs a maintainer to confirm (question `QN`). | Only under the `relaxed` policy, and only for low-risk cases. Never for a serious (memory-safety / RCE-class) issue. |
 | *(inferred, QN)* | An educated guess from reading the code — genuinely unconfirmed (question `QN`). | No. It can only **escalate** a report to a human. |
@@ -111,7 +111,11 @@ maintainer. `VALID` and `MODEL-GAP` always fail safe.
 | **Provenance** | The chain of "who said so" behind each claim — the tags above. Kept in the published model so any closed report is defensible. |
 | **Triage policy** | How cautiously the model closes reports. `strict` (default): only firmly documented claims close anything. `relaxed`: cautious assumptions may close low-risk reports provisionally, and a reporter can reopen them. |
 | **Escalate** | Hand a report to a maintainer instead of closing it, because the supporting claim isn't confirmed enough. |
-| **Backtest** | A validation step: run past real findings through the draft model and check each lands in exactly one bucket. Catches gaps before publishing. |
+| **Disposition status** | What a triager may *do* with a route, recorded next to the disposition: `closed` (the claim behind it is confirmed), `provisional` (a cautious assumption closed it under `relaxed`; a reporter can reopen it), or `escalated` (the route is right but the claim behind it isn't confirmed enough to close). An escalated report is **not** a model gap — the model had an answer, it just lacks the authority to give it yet. |
+| **Absence-based disclaimer** | A "we don't promise that" written because nothing in the docs promises it, rather than because the project stated a limit. Useful, but weaker: it never closes a serious report on its own, because silence is not the same as a decision. |
+| **Backtest** | A validation step: route past real findings through the draft model and compare each result against what the project actually did. Landing in exactly one bucket is necessary but not sufficient — the test it must pass is that nothing the project actually fixed gets closed. |
+| **Fail-safe figure** | The number the backtest reports that matters most: how many items the project actually fixed the model would have *closed*. The target is zero. Over-escalating wastes maintainer time; over-closing answers a live vulnerability with "not a bug". |
+| **Worked routing example** | A one-line worked case in §1.11 — what was reported, the sink, what the attacker needed, the symptom, the disposition, and the claim that licensed it. At least one shows a report the project *accepts* as valid. |
 | **Sidecar** | The machine-readable `threat-model.yaml` companion to the prose model, for tools and automated triage. The prose stays the source of truth. |
 | **Version binding** | The model is tied to a specific released/committed version. A report against version *N* is judged against the model as it stood at *N*. |
 | **Unratified draft** | A model published while some claims are still unconfirmed (maintainer went quiet). Usable, but it escalates rather than closes on the unconfirmed parts. |

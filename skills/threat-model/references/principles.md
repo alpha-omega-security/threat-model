@@ -52,6 +52,16 @@ re-deriving the reasoning:
 > `relaxed` triage policy, close a *low-blast-radius* report provisionally; it
 > can never carry the project's authority to dismiss a memory-safety or
 > RCE-class report. See the provenance and §1.17 rules in output-structure.md.
+>
+> **Silence is not a disclaimer for the serious cases.** The rule above is a
+> lever, and it has a floor: a disclaimer resting on the *absence* of a
+> statement never closes a security-critical report, a `KNOWN-NON-FINDING`, or a
+> `dependency-contract` route, whatever tag it carries. Note also what the lever
+> does *not* cover — an absent *guarantee* is a disclaimer, but an absent
+> *behaviour* you established by scanning ("it opens no sockets") is a §1.5
+> assumption, because the project never promised to keep it absent. And an
+> absence claim reaches only as far as the source you cite: a FAQ answer about
+> the compressor says nothing about the decompressor.
 
 ## Write so a human can read it
 

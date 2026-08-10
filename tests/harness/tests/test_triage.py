@@ -418,3 +418,51 @@ def test_relaxed_assumption_never_closes_valid():
     r = triage({"component": "core", "violates_claimed_property": "mem-safety"}, sc)
     assert r.disposition == "VALID" and not r.closed and not r.escalated
 
+
+
+def test_known_non_finding_component_guard_reads_both_schema_forms():
+    """A §1.15 entry must guard its component in either schema spelling.
+
+    The schema tells authors to emit ``components: [...]``; ``component: <name>``
+    is the older singular form. If the routing engine reads only one of them, an
+    entry written the other way has *no* component scope — and because
+    KNOWN-NON-FINDING is precedence rule 1, it would then suppress every
+    component, including ones the sidecar never declared.
+    """
+    for scope in ({"component": "core"}, {"components": ["core"]}):
+        sc = _mini_sidecar()
+        entry = sc["known_non_findings"][0]
+        entry.pop("component", None)
+        entry.update(scope)
+
+        matched = triage(
+            {"component": "core", "matches_known_non_finding": "sanitizer-noise"}, sc)
+        assert matched.disposition == "KNOWN-NON-FINDING", scope
+
+        for other in ("gz-convenience", "totally-undeclared"):
+            r = triage(
+                {"component": other, "matches_known_non_finding": "sanitizer-noise"}, sc)
+            assert r.disposition != "KNOWN-NON-FINDING", (scope, other)
+
+
+def test_disposition_status_tracks_closed_provisional_escalated():
+    """``status`` is the §1.17 qualifier a triager records; it is not ``effective``."""
+    sc = _mini_sidecar()
+    closed = triage({"component": "core", "sink": "api",
+                     "requires_control_of_trusted_operand": "out-buf"}, sc)
+    assert closed.status == "closed"
+
+    prov = triage({"component": "samples"}, _assumption_sidecar("relaxed"))
+    assert prov.status == "provisional"
+
+    esc = triage({"component": "samples"}, _assumption_sidecar("strict"))
+    assert esc.status == "escalated"
+    # An escalated finding keeps its disposition for the maintainer even though
+    # corpus scoring folds it into MODEL-GAP.
+    assert esc.disposition == "OUT-OF-MODEL: unsupported-component"
+    assert esc.effective == "MODEL-GAP"
+
+    # VALID and MODEL-GAP are not closes and take no qualifier.
+    assert triage({"component": "core",
+                   "violates_claimed_property": "mem-safety"}, sc).status == ""
+    assert triage({"component": "core"}, sc).status == ""
