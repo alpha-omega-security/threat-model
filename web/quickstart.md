@@ -41,7 +41,7 @@ Copilot; it places the files in Copilot's project skill location for you:
 
 ```bash
 gh skill preview alpha-omega-security/threat-model skills/threat-model
-gh skill install alpha-omega-security/threat-model skills/threat-model \
+gh skill install alpha-omega-security/threat-model --all \
   --agent github-copilot --scope project
 ```
 
@@ -55,12 +55,12 @@ already open, and confirm the skill and MCP tools are available:
 ```
 
 Copilot CLI includes the GitHub MCP server by default. Use `/mcp add` only when
-your workflow needs an additional MCP server. Other
+your workflow needs an additional MCP server.
+
+Install the full skill set so the orchestrator and specialist skills remain
+siblings. They share references owned by the `threat-model` orchestrator. Other
 [Agent Skills](https://agentskills.io/clients) clients may use a different skill
 path.
-
-Keep the skill directories together. The specialists share references owned by
-the `threat-model` orchestrator.
 
 ## 2. Ask for the model
 

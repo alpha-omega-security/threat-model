@@ -24,9 +24,13 @@ Copilot; it places the files in Copilot's project skill location for you:
 
 ```bash
 gh skill preview alpha-omega-security/threat-model skills/threat-model
-gh skill install alpha-omega-security/threat-model skills/threat-model \
+gh skill install alpha-omega-security/threat-model --all \
   --agent github-copilot --scope project
 ```
+
+Install the full skill set so the orchestrator and specialist skills remain
+siblings; they share references under `threat-model/references/` via relative
+paths.
 
 Then start Copilot CLI in the target checkout, reload skills if the session was
 already open, and confirm the skill and MCP tools are available:
