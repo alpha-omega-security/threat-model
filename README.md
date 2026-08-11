@@ -19,23 +19,31 @@ New to security threat modeling? The [glossary](./skills/threat-model/references
 
 ### GitHub Copilot
 
-Clone this repository, then install the skills into the target checkout where
-GitHub Copilot discovers repository-level skills:
+Use GitHub CLI's skill manager to inspect and install the skill for GitHub
+Copilot; it places the files in Copilot's project skill location for you:
 
 ```bash
-THREAT_MODEL_REPO=/path/to/cloned/threat-model
-mkdir -p .github/skills
-cp -R "$THREAT_MODEL_REPO/skills/"* .github/skills/
+gh skill preview alpha-omega-security/threat-model skills/threat-model
+gh skill install alpha-omega-security/threat-model skills/threat-model \
+  --agent github-copilot --scope project
 ```
 
-Then ask Copilot to use the threat-model skill, for example:
+Then start Copilot CLI in the target checkout, reload skills if the session was
+already open, and confirm the skill and MCP tools are available:
+
+```text
+/skills reload
+/skills info threat-model
+/mcp show
+```
+
+Copilot CLI includes the GitHub MCP server by default. Use `/mcp add` only when
+your workflow needs an additional MCP server. Then ask Copilot to use the
+threat-model skill, for example:
 
 ```
 Produce a threat model for this project.
 ```
-
-Keep the skill folders as siblings — the specialists share the references under
-`threat-model/references/` via relative paths.
 
 ### Other agents
 
