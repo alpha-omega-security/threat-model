@@ -12,7 +12,7 @@
       "name": "threat-model",
       "source": "./",
       "description": "Produce threat models for open-source projects: the security contract between a project and its users, structured for downstream integrators and vulnerability triagers.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "author": {
         "name": "Alpha-Omega"
       },
