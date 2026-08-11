@@ -45,8 +45,7 @@ In an interactive Copilot CLI session:
 
 ### Other compatible agents
 
-Other [Agent Skills](https://agentskills.io/clients) clients may use a different
-skill path.
+Other [Agent Skills](https://agentskills.io/clients) clients may use a different skill path. If you load the skills directly from a checkout, keep the skill directories as siblings under `skills/` so the specialists can resolve shared references via relative paths.
 
 ## 2. Ask for the model
 
