@@ -17,9 +17,31 @@ New to security threat modeling? The [glossary](./skills/threat-model/references
 /plugin install threat-model@threat-model
 ```
 
+### GitHub Copilot
+
+Clone this repository, then install the skills into the target checkout where
+GitHub Copilot discovers repository-level skills:
+
+```bash
+mkdir -p .github/skills
+cp -R /path/to/threat-model/skills/* .github/skills/
+```
+
+Then ask Copilot to use the threat-model skill, for example:
+
+```
+Produce a threat model for this project.
+```
+
+Keep the skill folders as siblings — the specialists share the references under
+`threat-model/references/` via relative paths.
+
 ### Other agents
 
-Any [agentskills.io-compatible](https://agentskills.io/clients) agent can load these skills directly from `skills/`. Clone the repo and point your agent's skill path at that directory, or copy its contents into your project's `.claude/skills/` (or equivalent). Keep the skill folders as siblings — the specialists share the references under `threat-model/references/` via relative paths.
+Any [agentskills.io-compatible](https://agentskills.io/clients) agent can load
+these skills directly from `skills/`. Clone the repo and point your agent's
+skill path at that directory, or copy its contents into your project's
+agent-specific skill directory. Keep the skill folders as siblings.
 
 ## Usage
 

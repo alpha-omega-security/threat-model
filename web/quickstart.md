@@ -36,10 +36,16 @@ Then open the target checkout and invoke:
 
 ### GitHub Copilot and other compatible agents
 
-Clone this repository and make the sibling directories under `skills/`
-available to your agent. GitHub Copilot discovers project skills under
-`.github/skills/`; other [Agent Skills](https://agentskills.io/clients)
-clients may use a different skill path.
+Clone this repository, then install the skills into the target checkout where
+GitHub Copilot discovers repository-level skills:
+
+```bash
+mkdir -p .github/skills
+cp -R /path/to/threat-model/skills/* .github/skills/
+```
+
+Other [Agent Skills](https://agentskills.io/clients) clients may use a
+different skill path.
 
 Keep the skill directories together. The specialists share references owned by
 the `threat-model` orchestrator.
