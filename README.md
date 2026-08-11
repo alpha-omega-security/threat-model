@@ -41,7 +41,8 @@ Keep the skill folders as siblings — the specialists share the references unde
 Any [agentskills.io-compatible](https://agentskills.io/clients) agent can load
 these skills directly from `skills/`. Clone the repo and point your agent's
 skill path at that directory, or copy its contents into your project's
-agent-specific skill directory. Keep the skill folders as siblings.
+`.claude/skills/` or equivalent agent-specific skill directory. Keep the skill
+folders as siblings.
 
 ## Usage
 
