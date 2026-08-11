@@ -34,15 +34,18 @@ Then open the target checkout and invoke:
 /threat-model:threat-model
 ```
 
-### GitHub Copilot and other compatible agents
+### GitHub Copilot
 
-Clone this repository and make the sibling directories under `skills/`
-available to your agent. GitHub Copilot discovers project skills under
-`.github/skills/`; other [Agent Skills](https://agentskills.io/clients)
-clients may use a different skill path.
+In an interactive Copilot CLI session:
 
-Keep the skill directories together. The specialists share references owned by
-the `threat-model` orchestrator.
+```text
+/plugin marketplace add https://github.com/alpha-omega-security/threat-model
+/plugin install threat-model@threat-model
+```
+
+### Other compatible agents
+
+Other [Agent Skills](https://agentskills.io/clients) clients may use a different skill path. If you load the skills directly from a checkout, keep the skill directories as siblings under `skills/` so the specialists can resolve shared references via relative paths.
 
 ## 2. Ask for the model
 
