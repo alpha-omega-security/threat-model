@@ -19,8 +19,9 @@ New to security threat modeling? The [glossary](./skills/threat-model/references
 
 ### GitHub Copilot
 
-Use GitHub CLI's skill manager to inspect and install the skill for GitHub
-Copilot; it places the files in Copilot's project skill location for you:
+Use GitHub CLI 2.90.0 or later's built-in skill manager to inspect and install
+the skill for GitHub Copilot; it places the files in Copilot's project skill
+location for you:
 
 ```bash
 gh skill preview alpha-omega-security/threat-model skills/threat-model
