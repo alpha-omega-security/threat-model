@@ -513,9 +513,38 @@ def test_fetch_path_clears_repo_shipped_symlink_before_writing(tmp_path, monkeyp
 
 def _work_dir_with_model(tmp_path: Path) -> Path:
     work = tmp_path / "work"
-    (work / "docs").mkdir(parents=True)
-    (work / "docs" / "threat-model.md").write_text("# model", encoding="utf-8")
+    work.mkdir()
+    (work / "threat-model.md").write_text("# model", encoding="utf-8")
     return work
+
+
+def test_collect_colocates_published_artifacts_at_output_root(tmp_path):
+    work = _work_dir_with_model(tmp_path)
+    (work / "threat-model.yaml").write_text("schema: test\n", encoding="utf-8")
+    (work / "threat-model.json").write_text("{}\n", encoding="utf-8")
+    out = tmp_path / "out"
+
+    have_model, rel_model, have_sidecar, have_json, _ = ntm._collect_artifacts(
+        ntm.Console(color=False), work, out, None)
+
+    assert (have_model, rel_model, have_sidecar, have_json) == (
+        True, "threat-model.md", True, True)
+    assert {p.name for p in out.iterdir()} >= {
+        "threat-model.md", "threat-model.yaml", "threat-model.json"}
+
+
+def test_collect_does_not_accept_nested_prose_path(tmp_path):
+    work = tmp_path / "work"
+    (work / "docs").mkdir(parents=True)
+    (work / "docs" / "threat-model.md").write_text("# legacy", encoding="utf-8")
+    out = tmp_path / "out"
+
+    have_model, rel_model, _, _, _ = ntm._collect_artifacts(
+        ntm.Console(color=False), work, out, None)
+
+    assert not have_model
+    assert rel_model is None
+    assert not (out / "threat-model.md").exists()
 
 
 def test_collect_skips_context_the_runner_did_not_create(tmp_path):

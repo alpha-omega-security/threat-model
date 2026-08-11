@@ -13,7 +13,7 @@ another.
 
 ## The deliverable is three artifacts
 
-- **Unstructured** — a prose document (`docs/threat-model.md`) written to a fixed
+- **Unstructured** — a root-level prose document (`threat-model.md`) written to a fixed
   section structure, with structured tables embedded inline (per-input-operand trust
   table, contract-dimension matrix, disposition set, triager quick-start).
 - **Structured** — a machine-readable companion (`threat-model.yaml`) that a
@@ -49,7 +49,7 @@ flowchart TD
     R -->|orientation brief| A
     S -->|surface analysis| A
     I -->|answers + provenance| A
-    A -->|docs/threat-model.md| B
+    A -->|threat-model.md| B
     B -->|revisions + §1.15| A
     A -->|canonical prose| Y
     A -. finished model .-> T[triage]

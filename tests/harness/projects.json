@@ -5,11 +5,11 @@
       "repo": "https://github.com/madler/zlib",
       "ref": "",
       "corpus": "tests/corpora/zlib/corpus.jsonl",
-      "golden_model": "tests/fixtures/golden/zlib/docs/threat-model.md",
+      "golden_model": "tests/fixtures/golden/zlib/threat-model.md",
       "golden_sidecar": "tests/fixtures/golden/zlib/threat-model.yaml",
       "replay": {
         "episodes": "tests/replay/zlib/episodes.jsonl",
-        "model": "tests/fixtures/golden/zlib/docs/threat-model.md",
+        "model": "tests/fixtures/golden/zlib/threat-model.md",
         "sidecar": "tests/fixtures/golden/zlib/threat-model.yaml"
       }
     },

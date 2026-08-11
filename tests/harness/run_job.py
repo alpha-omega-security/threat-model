@@ -243,7 +243,8 @@ def _validate_full(art: Artifacts):
     model = Model.from_file(art.model_path)
     report = run_prose_checks(model)
     if art.sidecar_path and art.sidecar_path.exists():
-        report.extend(run_sidecar_checks(load_sidecar(art.sidecar_path), model).findings)
+        report.extend(run_sidecar_checks(
+            load_sidecar(art.sidecar_path), model, art.sidecar_path).findings)
     val = {
         "present": True, "ok": report.ok,
         "errors": [f"{f.check_id}: {f.message}" for f in report.errors],

@@ -37,7 +37,7 @@ def tree(tmp_path: Path) -> Path:
 
 def _model(body: str) -> Model:
     return Model.from_text("# T\n\n## 1.1 Header\n\n" + body,
-                           Path("docs/threat-model.md"))
+                           Path("threat-model.md"))
 
 
 def _fail_ids(tree: Path, body: str) -> set[str]:
@@ -179,7 +179,7 @@ def buildtree(tmp_path: Path) -> Path:
 def _scope_fail(tree: Path, scope_body: str) -> bool:
     model = Model.from_text(
         "# T\n\n## 1.1 Header\n\nx\n\n## 1.3 Out of scope\n\n" + scope_body,
-        Path("docs/threat-model.md"))
+        Path("threat-model.md"))
     return any(not f.passed for f in run_buildscope_checks(model, tree).findings)
 
 
@@ -231,7 +231,7 @@ def apitree(tmp_path: Path) -> Path:
 def _api_fail(tree: Path, s7: str) -> list[str]:
     model = Model.from_text(
         "# T\n\n## 1.1 Header\n\nx\n\n## 1.7 Inputs\n\n" + s7,
-        Path("docs/threat-model.md"))
+        Path("threat-model.md"))
     return [f.check_id for f in run_api_checks(model, tree).findings if not f.passed]
 
 

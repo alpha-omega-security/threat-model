@@ -1,7 +1,7 @@
 # Output structure — the threat-model document
 
-This is the canonical section-by-section specification for the **deliverable**
-(typically `docs/threat-model.md`). The `threat-model-authoring` specialist
+This is the canonical section-by-section specification for the root-level
+**deliverable** (`threat-model.md`). The `threat-model-authoring` specialist
 writes to this structure; every other specialist feeds one or more sections.
 
 Use these sections, in this order. Rename to fit a project's house style, but

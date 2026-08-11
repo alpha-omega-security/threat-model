@@ -200,7 +200,7 @@ python -m pytest tests/harness/tests -q
 Validate a single model (and sidecar):
 
 ```pwsh
-python tests/harness/validate_model.py tests/fixtures/golden/zlib/docs/threat-model.md tests/fixtures/golden/zlib/threat-model.yaml
+python tests/harness/validate_model.py tests/fixtures/golden/zlib/threat-model.md tests/fixtures/golden/zlib/threat-model.yaml
 ```
 
 Materialize the mutation fixtures for inspection:

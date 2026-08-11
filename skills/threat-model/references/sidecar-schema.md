@@ -21,7 +21,7 @@ a `security-critical` disclaimed property, `KNOWN-NON-FINDING`, or
 schema: threat-model-sidecar/v2
 project: zlib
 # Canonical relative path plus SHA-256 of the exact prose bytes.
-prose_version: "docs/threat-model.md@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+prose_version: "threat-model.md@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 model_status: unratified-draft # draft | unratified-draft | under-review | accepted
 triage_policy: strict          # strict (default) | relaxed
 confidence: {documented: 29, maintainer: 24, inferred: 6, assumption: 0}
@@ -266,9 +266,10 @@ disposition_statuses:         # what the triager may DO with a closing route
   `unratified-draft`, `under maintainer review` → `under-review`, and `accepted`
   → `accepted`. The sidecar value is normalized; it need not textually equal the
   prose label.
-- `prose_version` is `<canonical-relative-path>@sha256:<64 lowercase hex>` for
-  the exact UTF-8 prose bytes. Validators recompute the digest when the prose
-  file is available; a label such as `draft` or `v1` is not sufficient.
+- `prose_version` is `threat-model.md@sha256:<64 lowercase hex>` for the exact
+  UTF-8 prose bytes. The prose, YAML, and JSON files are colocated at the
+  modeled root. Validators recompute the digest when the prose file is
+  available; a label such as `draft` or `v1` is not sufficient.
 - `confidence` must equal the header's draft-confidence count (§1.1). If they
   disagree, the sidecar is stale — regenerate.
 - `generation` is optional §1.1 provenance metadata about how the model was

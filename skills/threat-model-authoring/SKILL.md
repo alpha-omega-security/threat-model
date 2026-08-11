@@ -2,7 +2,7 @@
 name: threat-model-authoring
 description: >-
   Draft phase 3.5 of a threat model from the orientation brief, surface
-  analysis, and maintainer answers. USE WHEN writing docs/threat-model.md to the
+  analysis, and maintainer answers. USE WHEN writing threat-model.md to the
   canonical §1.1–§1.19 structure. Combines concise prose with the §1.7 trust
   table and contract matrix, §1.8 output statements, §1.17 disposition table,
   §1.1 triager quick-start, and any prior-policy back-map. Tags every non-trivial
@@ -179,6 +179,7 @@ The deliverable deliberately mixes **both kinds of content in one document**:
 
 ## Output
 
-`docs/threat-model.md` (or the project's house path), ready for the
+Root-level `threat-model.md`, beside `threat-model.yaml` and
+`threat-model.json`, ready for the
 `threat-model-backtest` gate and the `threat-model-sidecar` derivation. Keep it
 to one sitting (3–8 pages) — sprawl is a smell.

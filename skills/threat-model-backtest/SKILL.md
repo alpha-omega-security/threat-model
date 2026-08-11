@@ -135,7 +135,7 @@ Do **not** publish the corpus itself.
 
 Write the routing table to **`.threat-model/backtest.md`** — a producer-side
 artifact, deliberately in a dot-directory rather than beside
-`docs/threat-model.md`. Every row carries a real advisory or issue URL, which
+`threat-model.md`. Every row carries a real advisory or issue URL, which
 the leave-out list keeps out of the published model, so a table sitting next to
 the deliverable gets published by the first `git add -A`. Add
 `.threat-model/` to the project's `.gitignore` if it is not already covered.

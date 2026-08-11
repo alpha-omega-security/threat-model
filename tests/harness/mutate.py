@@ -21,7 +21,7 @@ import yaml
 
 _REPO = Path(__file__).resolve().parents[2]
 GOLDEN_DIR = _REPO / "tests" / "fixtures" / "golden" / "zlib"
-GOLDEN_MODEL = GOLDEN_DIR / "docs" / "threat-model.md"
+GOLDEN_MODEL = GOLDEN_DIR / "threat-model.md"
 GOLDEN_SIDECAR = GOLDEN_DIR / "threat-model.yaml"
 GOLDEN_JSON = GOLDEN_DIR / "threat-model.json"
 OUT_DIR = _REPO / "tests" / "fixtures" / "mutations"
@@ -436,7 +436,7 @@ def build_cases() -> list[MutationCase]:
 
     sc = copy.deepcopy(sidecar)
     digest = sc["prose_version"].split("@sha256:", 1)[1]
-    sc["prose_version"] = f"../docs/threat-model.md@sha256:{digest}"
+    sc["prose_version"] = f"../threat-model.md@sha256:{digest}"
     add("sidecar-noncanonical-prose-path",
         "the prose binding uses a parent-directory traversal path",
         {"SC.prose-version"}, sc=sc)
@@ -605,8 +605,8 @@ def main() -> int:
     golden_json_text = GOLDEN_JSON.read_text(encoding="utf-8")
     for case in build_cases():
         d = OUT_DIR / case.name
-        (d / "docs").mkdir(parents=True, exist_ok=True)
-        (d / "docs" / "threat-model.md").write_text(case.model_text, encoding="utf-8")
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "threat-model.md").write_text(case.model_text, encoding="utf-8")
         (d / "threat-model.yaml").write_text(
             yaml.safe_dump(case.sidecar, sort_keys=False), encoding="utf-8")
         (d / "threat-model.json").write_text(

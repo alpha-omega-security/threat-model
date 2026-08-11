@@ -18,7 +18,7 @@ This is the generation adapter behind the harness's ``subprocess`` runner
   4. invokes either the GitHub Copilot CLI (``copilot -p <prompt>
      --allow-all-tools``) or the Claude CLI (``claude -p <prompt>
      --dangerously-skip-permissions``) to drive the ``threat-model``
-     orchestrator skill, producing ``docs/threat-model.md`` and
+     orchestrator skill, producing ``threat-model.md`` and
      ``threat-model.yaml`` and -- if a corpus is supplied -- triaging each
      finding into ``predictions.jsonl``;
   5. runs the deterministic validator and, for up to ``--max-repair-attempts``
@@ -393,22 +393,6 @@ def copy_artifact(src: Path, dest: Path) -> bool:
     return False
 
 
-def find_in_scope(work_dir: Path, preferred_relative: Path, filename: str) -> Path:
-    """Locate a produced artifact within ``work_dir``.
-
-    Prefer the canonical relative path; otherwise search recursively, staying in
-    scope so a monorepo run never grabs a sibling package's file. Falls back to
-    the preferred (possibly missing) path so callers can test ``.exists()``.
-    """
-    preferred = work_dir / preferred_relative
-    if preferred.exists():
-        return preferred
-    for found in work_dir.rglob(filename):
-        if found.is_file():
-            return found
-    return preferred
-
-
 def skill_install_relpath(agent: str) -> Path:
     """Where ``agent``'s CLI looks for repository-level skills.
 
@@ -453,7 +437,7 @@ def build_subdir_note(subdir: str) -> str:
         "within a larger repository (often a monorepo). Model ONLY the package in that\n"
         "subdirectory. You may read the rest of the repository for context, but the\n"
         "contract, entry points, and artifacts must be scoped to this package. Write\n"
-        "docs/threat-model.md, threat-model.yaml, and threat-model.json INSIDE that\n"
+        "threat-model.md, threat-model.yaml, and threat-model.json INSIDE that\n"
         "subdirectory (i.e. the current working directory), not at the repository root."
     )
 
@@ -538,7 +522,7 @@ modify the project's source code.
 
 Produce the three-artifact deliverable the skill specifies, plus the
 producer-side backtest table:
-  1. docs/threat-model.md  — the prose model, written to the canonical section
+  1. threat-model.md       — the prose model, written to the canonical section
       structure, with every non-trivial claim carrying a source-labeled
       (documented, source) / dated (maintainer, YYYY-MM) / conservative-default
       (assumption, QN) / open (inferred, QN) provenance tag, a draft-confidence
@@ -559,7 +543,8 @@ producer-side backtest table:
   4. .threat-model/backtest.md — the phase-3.6 routing table (one row per
       corpus item: id, source URL or "synthesized", component, cluster,
       dimension, disposition, licensing section, historical outcome,
-      pass/fail). Producer-side evidence, kept out of docs/ deliberately.
+      pass/fail). Producer-side evidence, kept outside the published artifact
+      set deliberately.
       Run phase 3.6 before publishing: route a corpus against the draft, record
       each item's actual historical outcome where one exists, and replace the
       drafting placeholder in the section 1.1 backtest note with real figures
@@ -625,7 +610,7 @@ def build_prompt(
 def build_repair_prompt(validator_output: str) -> str:
     return f"""The threat model you produced in the current directory has validation errors that
 must be fixed. Below is the deterministic validator's report of
-docs/threat-model.md and its machine-readable companions (threat-model.yaml,
+threat-model.md and its machine-readable companions (threat-model.yaml,
 threat-model.json):
 
 {validator_output}
@@ -659,7 +644,7 @@ validator did not flag and without touching the project's source code:
     backtest happened without reporting what it found.
   - §1.1 must contain the triager quick-start naming the contract
     dimensions, the disposition PRECEDENCE, and §1.17.
-  - After editing docs/threat-model.md, REGENERATE threat-model.yaml so its
+  - After editing threat-model.md, REGENERATE threat-model.yaml so its
     prose_version SHA-256 matches the edited prose exactly, and correct any bad
     component provenance the validator named.
   - Whenever the prose or the sidecar changes, REGENERATE threat-model.json from
@@ -1127,9 +1112,9 @@ def _repair_loop(
         return
 
     assert validator_path is not None
-    model_path = find_in_scope(work_dir, Path("docs") / "threat-model.md", "threat-model.md")
-    sidecar_path = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
-    json_path = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
+    model_path = work_dir / "threat-model.md"
+    sidecar_path = work_dir / "threat-model.yaml"
+    json_path = work_dir / "threat-model.json"
     if not model_path.exists():
         console.warn("no threat-model.md to validate; skipping repair")
         return
@@ -1145,9 +1130,9 @@ def _repair_loop(
         if rc != 0:
             console.warn(f"repair pass {attempt} exited with code {rc}; stopping repair loop")
             break
-        model_path = find_in_scope(work_dir, Path("docs") / "threat-model.md", "threat-model.md")
-        sidecar_path = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
-        json_path = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
+        model_path = work_dir / "threat-model.md"
+        sidecar_path = work_dir / "threat-model.yaml"
+        json_path = work_dir / "threat-model.json"
         ok, output = run_validator(args.python_path, validator_path, model_path,
                                sidecar_path, source_root=work_dir,
                                json_report_path=json_path)
@@ -1166,36 +1151,21 @@ def _collect_artifacts(
     """Copy the model, sidecar, JSON report, and (optional) predictions from
     work_dir into out_dir.
 
-    Fallback searches stay within work_dir so a monorepo run never grabs a
-    sibling package's file.
+    Every published artifact has one canonical location at the modeled root.
+    Scoped monorepo runs use the selected subdirectory as that root.
     """
     console.step(f"Collecting artifacts into {out_dir}")
 
-    # Prose model: prefer docs/threat-model.md, else the first match in scope.
-    model_src = find_in_scope(work_dir, Path("docs") / "threat-model.md", "threat-model.md")
+    model_src = work_dir / "threat-model.md"
+    have_model = copy_artifact(model_src, out_dir / "threat-model.md")
+    rel_model = "threat-model.md" if have_model else None
 
-    # Preserve the model's canonical relative path (normally docs/threat-model.md)
-    # under out_dir. The sidecar's prose_version binding names that path
-    # ("docs/threat-model.md@sha256:<digest>"), so flattening it would break the
-    # prose-version path check even though the content digest still matches.
-    have_model = False
-    rel_model: Optional[str] = None
-    if model_src.exists():
-        rel_model = os.path.relpath(model_src, work_dir)
-        if not rel_model or rel_model.startswith(".."):
-            rel_model = "threat-model.md"
-        model_dest = out_dir / rel_model
-        model_dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(model_src, model_dest)
-        have_model = True
-
-    sidecar_src = find_in_scope(work_dir, Path("threat-model.yaml"), "threat-model.yaml")
+    sidecar_src = work_dir / "threat-model.yaml"
     have_sidecar = copy_artifact(sidecar_src, out_dir / "threat-model.yaml")
 
     # The schema.json-conforming export. Collected exactly like the sidecar:
-    # canonical spot is the repo root (the subdir for scoped runs), with the
-    # same in-scope fallback search.
-    json_src = find_in_scope(work_dir, Path("threat-model.json"), "threat-model.json")
+    # canonical spot is the modeled root (the subdir for scoped runs).
+    json_src = work_dir / "threat-model.json"
     if json_src.is_symlink():
         console.warn("threat-model.json is a symlink; not collecting it")
         have_json = False

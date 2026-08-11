@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export an existing threat model as `threat-model.json` (schema.json shape).
 
-An orchestrated run produces prose (`docs/threat-model.md`, canonical) and a
+An orchestrated run produces prose (`threat-model.md`, canonical) and a
 YAML sidecar (`threat-model.yaml`, a near-lossless derived index). Some
 consumers speak only the flat schema in `schema.json`, so this tool projects
 the pair into a third artifact. The authority order is prose > yaml > json.
