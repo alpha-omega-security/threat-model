@@ -1125,6 +1125,10 @@ button {
   gap: 0.35rem;
 }
 
+.explorer-field[hidden] {
+  display: none;
+}
+
 .explorer-field label {
   font-size: 0.86rem;
   font-weight: 800;
