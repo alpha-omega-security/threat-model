@@ -1,0 +1,41 @@
+title: Threat Model
+tagline: Security contracts for open-source software
+description: >-
+  Agent skills for producing evidence-backed threat models that document what
+  open-source projects assume, guarantee, disclaim, and leave to downstream users.
+url: https://alpha-omega-security.github.io
+baseurl: /threat-model
+repository: alpha-omega-security/threat-model
+repository_url: https://github.com/alpha-omega-security/threat-model
+repository_branch: main
+lang: en
+
+markdown: kramdown
+highlighter: rouge
+permalink: pretty
+
+collections:
+  models:
+    output: true
+    permalink: /models/:name/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+  - scope:
+      path: ""
+      type: models
+    values:
+      layout: model
+
+sass:
+  style: compressed
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - vendor
+

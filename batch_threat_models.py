@@ -51,7 +51,7 @@ Output tree
       <target>/
         comparison.md                   # Opus diff summary (once complete)
         <config>/
-          docs/threat-model.md
+          threat-model.md
           threat-model.yaml
           threat-model.json
           <agent>.log                   # the agent transcript
@@ -427,7 +427,7 @@ def run_job(
     started = _now()
     exit_code = run_subprocess(cmd, cwd=SCRIPT_DIR, log_path=jdir / "run.log", echo=echo)
 
-    model_path = jdir / "docs" / "threat-model.md"
+    model_path = jdir / "threat-model.md"
     sidecar_path = jdir / "threat-model.yaml"
     json_path = jdir / "threat-model.json"
     have_model = model_path.exists()
@@ -486,12 +486,12 @@ def build_compare_prompt(target: Target, configs: Sequence[Config], records: Dic
         rec = records.get(c.slug) or {}
         if rec.get("has_model"):
             lines.append(
-                f"  - {c.slug}/docs/threat-model.md  "
+                f"  - {c.slug}/threat-model.md  "
                 f"(agent {c.agent}, model {c.model or 'default'}, effort {c.effort or 'unset'})"
             )
     lines += [
         "",
-        "Read each of those docs/threat-model.md files. Then write a concise Markdown",
+        "Read each of those threat-model.md files. Then write a concise Markdown",
         "comparison to a file named 'comparison.md' in the current directory. Cover:",
         "  - Scope: which components / entry points each model puts in vs. out of scope.",
         "  - The disclaimed properties and the disposition/triage stance each takes.",
@@ -573,7 +573,7 @@ def _cell(out_dir: Path, summary_dir: Path, target: Target, config: Config) -> s
         log = jdir / "run.log"
         link = f" [log]({_rel(log, summary_dir)})" if log.exists() else ""
         return f"{mark}{link}"
-    model_path = jdir / "docs" / "threat-model.md"
+    model_path = jdir / "threat-model.md"
     yaml_path = jdir / "threat-model.yaml"
     json_path = jdir / "threat-model.json"
     parts = [mark]

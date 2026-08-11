@@ -12,7 +12,7 @@ padding.
   project's own README/docs), never the golden fixture, the corpus labels, or
   which agent produced it. Strip authorship and run metadata first.
 - **Calibrated.** Before scoring a candidate, the judge scores the golden zlib
-  fixture ([../fixtures/golden/zlib/docs/threat-model.md](../fixtures/golden/zlib/docs/threat-model.md))
+  fixture ([../fixtures/golden/zlib/threat-model.md](../fixtures/golden/zlib/threat-model.md))
   to anchor the scale. A candidate is graded relative to that anchor.
 - **Structured output.** The judge emits one JSON object (schema below) so runs
   aggregate. Prose justification is required per dimension — a bare score is

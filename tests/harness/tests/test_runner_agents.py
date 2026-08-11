@@ -41,6 +41,14 @@ def test_prompt_points_at_the_agents_own_skill_path():
     assert ".github/skills" in copilot and ".claude/skills" not in copilot
 
 
+def test_prompt_colocates_all_published_artifacts_at_modeled_root():
+    prompt = build_prompt("zlib", "", "strict", None, "high", "copilot")
+    assert "1. threat-model.md" in prompt
+    assert "2. threat-model.yaml" in prompt
+    assert "3. threat-model.json" in prompt
+    assert "docs/threat-model.md" not in prompt
+
+
 def test_skill_descriptions_fit_copilot_limit():
     oversized = {}
     for skill_path in sorted((_REPO / "skills").glob("*/SKILL.md")):

@@ -57,7 +57,7 @@ Re-run a threat-model update when something changes what the model describes. Se
 
 ### Generate non-interactively (`new_threat_model.py`)
 
-For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting `docs/threat-model.md` + `threat-model.yaml` + `threat-model.json` into the output directory.
+For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting the colocated `threat-model.md` + `threat-model.yaml` + `threat-model.json` artifacts into the output directory.
 
 ```pwsh
 # needs `git` plus an authenticated `copilot` (or `claude`) CLI on PATH

@@ -1,0 +1,116 @@
+---
+title: Triage guide
+description: Apply the model’s fixed disposition precedence and provenance rules to one inbound finding.
+script: /assets/js/triage-explorer.js
+---
+
+<header class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">Finding triage</span>
+    <h1>Route findings without inventing exceptions.</h1>
+    <p class="lede">Locate the model fact, apply the fixed precedence, then check whether its provenance has enough authority to close.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <span class="eyebrow">First match wins</span>
+    <h2>Canonical disposition order</h2>
+    <ol class="precedence-list">
+      {% for disposition in site.data.dispositions %}
+        <li>
+          <code>{{ disposition.label }}</code>
+          <span>{{ disposition.short }}</span>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+
+<section class="section section-muted">
+  <div class="wrap">
+    <span class="eyebrow">Interactive explainer</span>
+    <h2>See how authority changes the outcome.</h2>
+    <p class="lede">This illustrates the policy. Real triage must cite the exact licensing fact in the project’s model.</p>
+
+    <div class="explorer">
+      <form class="explorer-form" data-triage-form>
+        <div class="explorer-field">
+          <label for="route">First matching model fact</label>
+          <select id="route" name="route">
+            <option value="model-gap">Nothing in the model fits</option>
+            <option value="known-non-finding">Exact known non-finding match</option>
+            <option value="unsupported-component">Unsupported component</option>
+            <option value="non-default-build">Unsupported or discouraged build</option>
+            <option value="dependency-contract">Dependency contract violation</option>
+            <option value="trusted-input">Requires control of a trusted operand</option>
+            <option value="adversary">Requires an excluded adversary capability</option>
+            <option value="disclaimed">Concerns an explicitly disclaimed property</option>
+            <option value="valid">Violates a claimed property</option>
+            <option value="hardening">Defense-in-depth hardening</option>
+          </select>
+          <small>Apply the model’s precedence before selecting a route.</small>
+        </div>
+
+        <div class="explorer-field">
+          <label for="provenance">Provenance of the licensing fact</label>
+          <select id="provenance" name="provenance">
+            <option value="documented">Documented</option>
+            <option value="maintainer">Maintainer-confirmed</option>
+            <option value="inferred">Inferred</option>
+            <option value="assumption">Assumption</option>
+          </select>
+        </div>
+
+        <div class="explorer-field">
+          <label for="policy">Triage policy</label>
+          <select id="policy" name="policy">
+            <option value="strict">Strict</option>
+            <option value="relaxed">Relaxed</option>
+          </select>
+        </div>
+
+        <div class="explorer-field" data-tier-field hidden>
+          <label for="tier">Disclaimed-property tier</label>
+          <select id="tier" name="tier">
+            <option value="security-critical">Security-critical</option>
+            <option value="correctness-only">Correctness-only</option>
+          </select>
+        </div>
+      </form>
+
+      <div class="explorer-result" aria-live="polite" data-triage-result>
+        <span class="result-kicker">Illustrative result</span>
+        <h2 data-result-disposition>MODEL-GAP</h2>
+        <span class="result-status" data-result-status>open</span>
+        <p data-result-reason>No existing disposition is licensed. Keep the finding open and revise the model.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+<div class="wrap content-grid">
+<aside class="side-note">
+  <strong>Never triage from JSON alone</strong>
+  The portable export intentionally drops precedence and other closure-critical detail. Use the prose and YAML sidecar.
+</aside>
+<div class="prose" markdown="1">
+
+## Before assigning a disposition
+
+1. Locate the sink and affected component.
+2. Identify the relevant input operand or output promise.
+3. Check attacker capability, required build flags, and dependency boundaries.
+4. Find the claimed or disclaimed property that actually governs the symptom.
+5. Apply the precedence above and cite the licensing model section.
+6. Check provenance before closing.
+
+An escalated finding keeps its identified disposition, but routes to a
+maintainer instead of closing. `MODEL-GAP` means the model itself needs revision;
+it is not a convenient fallback for difficult reports.
+
+</div>
+</div>
+</section>
+

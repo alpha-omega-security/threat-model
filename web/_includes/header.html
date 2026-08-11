@@ -1,0 +1,27 @@
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ '/' | relative_url }}" aria-label="{{ site.title }} home">
+      <img src="{{ '/assets/img/mark.svg' | relative_url }}" width="34" height="34" alt="">
+      <span>
+        <strong>Threat Model</strong>
+        <small>by Alpha-Omega</small>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">
+      <span class="sr-only">Toggle navigation</span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </button>
+    <nav id="site-navigation" class="site-nav" aria-label="Primary">
+      {% for item in site.data.navigation %}
+        <a href="{{ item.url | relative_url }}"
+           {% if page.url == item.url or page.url contains item.url and item.url != '/' %}aria-current="page"{% endif %}>
+          {{ item.title }}
+        </a>
+      {% endfor %}
+      <a class="nav-github" href="{{ site.repository_url }}">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+

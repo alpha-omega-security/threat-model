@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from pathlib import PurePosixPath
+from pathlib import Path
 from typing import Iterable
 
 from .checks import DISPOSITIONS, ALL_IN_SCOPE, entry_components
@@ -105,13 +105,6 @@ def _explicit_no_obligation(value) -> bool:
         re.match(r"^\s*(?:none|no caller obligation)\b", value, re.IGNORECASE))
 
 
-def _canonical_relative_path(value: str) -> bool:
-    path = PurePosixPath(value)
-    return (bool(value) and "\\" not in value and ":" not in value
-            and not path.is_absolute() and path.as_posix() == value
-            and all(part not in {".", ".."} for part in path.parts))
-
-
 def _contains_inferred_provenance(value) -> bool:
     if isinstance(value, dict):
         return (value.get("kind") == "inferred"
@@ -144,7 +137,8 @@ def _entry_scope_ok(item: dict, declared: set[str], *, allow_all: bool) -> bool:
                for c in comps)
 
 
-def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding]:
+def check_sidecar(sidecar: dict, model: Model | None = None,
+                  sidecar_path: str | Path | None = None) -> Iterable[Finding]:
     schema = sidecar.get("schema")
     yield _f("SC.schema", schema == "threat-model-sidecar/v2",
              f"schema is {schema!r}, expected 'threat-model-sidecar/v2'"
@@ -183,13 +177,18 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
     pv_match = _PROSE_VERSION.fullmatch(str(pv or ""))
     pv_path = pv_match.group(1) if pv_match else ""
     pv_digest = pv_match.group(2) if pv_match else ""
-    pv_ok = bool(pv_match) and _canonical_relative_path(pv_path)
-    pv_msg = "prose_version has path-plus-SHA-256 form" if pv_ok else (
-        "prose_version must be '<canonical-relative-path>@sha256:<64 lowercase hex>'")
+    pv_ok = bool(pv_match) and pv_path == "threat-model.md"
+    pv_msg = "prose_version binds root-level threat-model.md by SHA-256" if pv_ok else (
+        "prose_version must be 'threat-model.md@sha256:<64 lowercase hex>'")
     if pv_ok and model is not None and model.path.exists():
         actual = hashlib.sha256(model.path.read_bytes()).hexdigest()
         actual_path = model.path.as_posix()
-        path_matches = actual_path == pv_path or actual_path.endswith("/" + pv_path)
+        path_matches = model.path.name == pv_path
+        if sidecar_path is not None:
+            path_matches = (
+                path_matches
+                and model.path.resolve().parent == Path(sidecar_path).resolve().parent
+            )
         pv_ok = actual == pv_digest and path_matches
         pv_msg = ("prose_version digest matches the prose" if pv_ok else
                   f"prose_version path/digest does not match {actual_path}@sha256:{actual}")
@@ -743,7 +742,8 @@ def check_sidecar(sidecar: dict, model: Model | None = None) -> Iterable[Finding
              f"triage_policy must be 'strict' or 'relaxed', got {policy!r}")
 
 
-def run_sidecar_checks(sidecar: dict, model: Model | None = None) -> Report:
+def run_sidecar_checks(sidecar: dict, model: Model | None = None,
+                       sidecar_path: str | Path | None = None) -> Report:
     report = Report()
-    report.extend(check_sidecar(sidecar, model))
+    report.extend(check_sidecar(sidecar, model, sidecar_path))
     return report

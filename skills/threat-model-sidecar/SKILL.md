@@ -177,8 +177,8 @@ For `threat-model.json`:
 
 ## Output
 
-`threat-model.yaml` and `threat-model.json` in the repo root (inside the
-subdirectory for a scoped run), one level above the prose in `docs/`, plus a
-one-line note of the `prose_version` the YAML was derived from for the
-orchestrator's finalize gate. The JSON carries no prose binding — only `commit`
-and `date` — one more reason it is an export, not the model.
+`threat-model.md`, `threat-model.yaml`, and `threat-model.json` together at the
+modeled root (inside the subdirectory for a scoped run), plus a one-line note of
+the `prose_version` the YAML was derived from for the orchestrator's finalize
+gate. The JSON carries no prose binding — only `commit` and `date` — one more
+reason it is an export, not the model.

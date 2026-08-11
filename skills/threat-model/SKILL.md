@@ -7,7 +7,7 @@ description: >
   USE WHEN asked to produce, write, or generate a threat model, model the
   security contract, or explain which threats a library accepts. This
   orchestrator runs the canonical workflow, delegates to threat-model-*
-  specialists, and publishes docs/threat-model.md, threat-model.yaml, and
+  specialists, and publishes threat-model.md, threat-model.yaml, and
   threat-model.json (authority: prose > YAML > JSON). To classify a finding
   against an existing model, use threat-model-triage. DO NOT USE FOR bug
   hunting, code review, CVE enumeration, or supply-chain/SDLC hygiene.
@@ -21,7 +21,8 @@ This skill owns the end-to-end procedure and delegates each phase to a
 specialist. The deliverable is **three artifacts**, in authority order
 **prose > yaml > json**:
 
-- **Unstructured** — a prose document (`docs/threat-model.md`) written to the
+- **Unstructured** — a prose document (`threat-model.md`) written at the modeled
+  root, beside the YAML and JSON artifacts, using the
   canonical section structure, with embedded structured tables (per-input-operand
   trust table, contract-dimension matrix, disposition set).
 - **Structured** — a machine-readable companion (`threat-model.yaml`) that a
@@ -56,7 +57,7 @@ start producing before internalizing it.
 | 3.2 Mine existing policy | [threat-model-recon](../threat-model-recon/SKILL.md) | Mined maintainer positions and prior-policy back-map |
 | 3.3 Deep surface pass | [threat-model-surface](../threat-model-surface/SKILL.md) | §1.7 trust table/matrix, §1.5 side effects, §1.4 reachability, §1.8 taint |
 | 3.4 Question waves | [threat-model-interview](../threat-model-interview/SKILL.md) | Answered/queued waves and provenance promotions |
-| 3.5 Draft | [threat-model-authoring](../threat-model-authoring/SKILL.md) | `docs/threat-model.md` with tagged prose and embedded tables |
+| 3.5 Draft | [threat-model-authoring](../threat-model-authoring/SKILL.md) | `threat-model.md` with tagged prose and embedded tables |
 | 3.6 Backtest | [threat-model-backtest](../threat-model-backtest/SKILL.md) | Routing/coverage report, revisions, qualified §1.15 feed |
 | 3.7 Iterate/sign off | **threat-model orchestrator** | Accepted model or unratified draft under the termination policy |
 | Publication: §1.19 | [threat-model-sidecar](../threat-model-sidecar/SKILL.md) | Validated `threat-model.yaml` derived index + `threat-model.json` export |

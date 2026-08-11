@@ -256,7 +256,10 @@ def test_mutation_materialization_writes_json(tmp_path, monkeypatch):
     assert mutate.main() == 0
     golden_text = mutate.GOLDEN_JSON.read_text(encoding="utf-8")
     for case in mutate.build_cases():
+        model = tmp_path / case.name / "threat-model.md"
         written = tmp_path / case.name / "threat-model.json"
+        assert model.exists(), case.name
+        assert not (tmp_path / case.name / "docs").exists(), case.name
         assert written.exists(), case.name
         if case.json_report is None:
             # prose/sidecar-only cases carry the golden export unchanged

@@ -85,7 +85,7 @@ def validate(model_path: str | Path, sidecar_path: str | Path | None = None,
     sidecar = None
     if sidecar_path is not None:
         sidecar = load_sidecar(sidecar_path)
-        report.extend(run_sidecar_checks(sidecar, model).findings)
+        report.extend(run_sidecar_checks(sidecar, model, sidecar_path).findings)
     if source_root is not None:
         report.extend(run_citation_checks(model, source_root).findings)
         report.extend(run_buildscope_checks(model, source_root).findings)

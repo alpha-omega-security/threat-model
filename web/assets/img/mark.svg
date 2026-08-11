@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Threat Model</title>
+  <path fill="#0d3038" d="M32 3 57 13v18c0 15-10 25-25 30C17 56 7 46 7 31V13L32 3Z"/>
+  <path fill="#36d0b0" d="m32 10 18 7v14c0 10-6 18-18 23-12-5-18-13-18-23V17l18-7Z"/>
+  <path fill="#071a21" d="M28 19h8v9h9v8h-9v9h-8v-9h-9v-8h9v-9Z"/>
+</svg>
+

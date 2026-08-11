@@ -2,7 +2,7 @@
 
 An orchestrated run publishes three artifacts, in strict order of authority:
 
-1. `docs/threat-model.md` — the prose model. **Canonical.**
+1. `threat-model.md` — the prose model. **Canonical.**
 2. `threat-model.yaml` — the `threat-model-sidecar/v2` index. Near-lossless.
 3. `threat-model.json` — a flat export conforming to the repo-root
    `schema.json` (draft 2020-12, `spec_version: 1`). **Lossy.**
@@ -14,10 +14,9 @@ that everything the JSON loses pushes that consumer toward *escalating*,
 never toward *closing*. That asymmetry is the point of every rule on this
 page.
 
-The file lives at `threat-model.json` in the repo root, beside
-`threat-model.yaml` (inside `subdir` when the run is scoped to a
-subdirectory, exactly like the YAML). Regenerate it whenever the prose or
-the sidecar changes. Unlike the sidecar it carries no `prose_version` hash —
+All three files live together at the modeled root (inside `subdir` when the run
+is scoped to a subdirectory). Regenerate the JSON whenever the prose or sidecar
+changes. Unlike the sidecar it carries no `prose_version` hash —
 it is bound to the modeled tree only by `repository` + `commit` + `date`, so
 record the commit with `git rev-parse HEAD` in the tree the model describes.
 

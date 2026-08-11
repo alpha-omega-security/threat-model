@@ -162,15 +162,7 @@ class SubprocessRunner:
                 f"generator command failed ({proc.returncode}) for {spec.name}; "
                 f"see {outdir / 'runner.stderr.log'}")
 
-        model = outdir / "docs" / "threat-model.md"
-        if not model.exists():
-            model = outdir / "threat-model.md"
-        if not model.exists():
-            # The generator preserves the model's canonical relative path
-            # (normally docs/threat-model.md); fall back to any match in scope.
-            found = sorted(outdir.rglob("threat-model.md"))
-            if found:
-                model = found[0]
+        model = outdir / "threat-model.md"
         if not model.exists():
             raise RunnerError(
                 f"generator did not produce threat-model.md under {outdir} "

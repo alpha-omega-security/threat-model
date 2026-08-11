@@ -56,7 +56,8 @@ def _validate_artifacts(art: Artifacts) -> dict:
     model = Model.from_file(art.model_path)
     report = run_prose_checks(model)
     if art.sidecar_path and art.sidecar_path.exists():
-        report.extend(run_sidecar_checks(load_sidecar(art.sidecar_path), model).findings)
+        report.extend(run_sidecar_checks(
+            load_sidecar(art.sidecar_path), model, art.sidecar_path).findings)
     return {
         "present": True,
         "ok": report.ok,

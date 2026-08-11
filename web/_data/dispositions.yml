@@ -1,0 +1,41 @@
+- id: known-non-finding
+  label: KNOWN-NON-FINDING
+  short: Exact, previously documented false positive
+  tone: neutral
+- id: unsupported-component
+  label: "OUT-OF-MODEL: unsupported-component"
+  short: Affected component is explicitly outside supported scope
+  tone: out
+- id: non-default-build
+  label: "OUT-OF-MODEL: non-default-build"
+  short: Finding requires an unsupported or discouraged build
+  tone: out
+- id: dependency-contract
+  label: "OUT-OF-MODEL: dependency-contract"
+  short: Root cause violates a documented dependency contract
+  tone: out
+- id: trusted-input
+  label: "OUT-OF-MODEL: trusted-input"
+  short: Finding requires control of an operand the model trusts
+  tone: out
+- id: adversary
+  label: "OUT-OF-MODEL: adversary-not-in-scope"
+  short: Required adversary capability is explicitly excluded
+  tone: out
+- id: disclaimed
+  label: "BY-DESIGN: property-disclaimed"
+  short: Finding concerns a property the project explicitly disclaims
+  tone: design
+- id: valid
+  label: VALID
+  short: Finding violates a security property the project claims
+  tone: valid
+- id: hardening
+  label: VALID-HARDENING
+  short: Useful defense-in-depth without a claimed-property violation
+  tone: valid
+- id: model-gap
+  label: MODEL-GAP
+  short: No existing disposition is licensed by the model
+  tone: gap
+

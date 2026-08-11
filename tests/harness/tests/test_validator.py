@@ -47,9 +47,31 @@ def test_golden_has_no_warnings():
 
 def test_stale_prose_digest_is_rejected():
     sidecar = copy.deepcopy(load_sidecar(mutate.GOLDEN_SIDECAR))
-    sidecar["prose_version"] = "docs/threat-model.md@sha256:" + "0" * 64
+    sidecar["prose_version"] = "threat-model.md@sha256:" + "0" * 64
     model = Model.from_file(mutate.GOLDEN_MODEL)
     report = run_sidecar_checks(sidecar, model)
+    assert "SC.prose-version" in report.failed_check_ids()
+
+
+def test_non_root_prose_path_is_rejected():
+    sidecar = copy.deepcopy(load_sidecar(mutate.GOLDEN_SIDECAR))
+    digest = sidecar["prose_version"].split("@sha256:", 1)[1]
+    sidecar["prose_version"] = f"docs/threat-model.md@sha256:{digest}"
+    model = Model.from_file(mutate.GOLDEN_MODEL)
+    report = run_sidecar_checks(sidecar, model)
+    assert "SC.prose-version" in report.failed_check_ids()
+
+
+def test_prose_must_be_colocated_with_sidecar(tmp_path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    model_path = docs / "threat-model.md"
+    model_path.write_bytes(mutate.GOLDEN_MODEL.read_bytes())
+    sidecar_path = tmp_path / "threat-model.yaml"
+    sidecar_path.write_bytes(mutate.GOLDEN_SIDECAR.read_bytes())
+
+    report = validate(model_path, sidecar_path)
+
     assert "SC.prose-version" in report.failed_check_ids()
 
 
