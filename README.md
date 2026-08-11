@@ -23,8 +23,9 @@ Clone this repository, then install the skills into the target checkout where
 GitHub Copilot discovers repository-level skills:
 
 ```bash
+THREAT_MODEL_REPO=/path/to/cloned/threat-model
 mkdir -p .github/skills
-cp -R /path/to/threat-model/skills/* .github/skills/
+cp -R "$THREAT_MODEL_REPO/skills/"* .github/skills/
 ```
 
 Then ask Copilot to use the threat-model skill, for example:
