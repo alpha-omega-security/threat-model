@@ -1310,7 +1310,8 @@ button {
   }
 
   .wrap {
-    width: min(calc(100% - 1.5rem), var(--wrap));
+    width: calc(100% - 1.5rem);
+    max-width: var(--wrap);
   }
 
   .hero-grid {
