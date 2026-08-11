@@ -1,24 +1,30 @@
 ---
 name: threat-model-sidecar
 description: >-
-  Emit and validate the §1.19 machine-readable companion threat-model.yaml using
-  schema threat-model-sidecar/v2. USE WHEN an orchestrated threat model is ready
+  Emit and validate the §1.19 machine-readable companions: threat-model.yaml
+  using schema threat-model-sidecar/v2, and the flat threat-model.json export
+  conforming to schema.json. USE WHEN an orchestrated threat model is ready
   for publication, automated or AI-assisted triage, dependency compatibility
-  analysis, or sidecar regeneration after prose changes. Projects provenance-
+  analysis, or companion regeneration after prose changes. Projects provenance-
   backed components, input obligations, contract dimensions, outputs,
   adversaries, dependencies, configurations, properties, misuses, non-findings,
-  and the closed disposition enum. Prose remains canonical. DO NOT USE FOR:
-  writing prose or routing a finding.
+  and the closed disposition enum. Prose remains canonical; authority order is
+  prose > yaml > json. DO NOT USE FOR: writing prose or routing a finding.
 argument-hint: '<path to the prose threat-model document>'
 ---
 
-# Threat Model — Sidecar (machine-readable companion)
+# Threat Model — Sidecar (machine-readable companions)
 
-Owns §1.19: emit `threat-model.yaml` alongside the prose document so shared
-triage tooling can consume the model without parsing prose. Follow the schema in
-[sidecar-schema.md](../threat-model/references/sidecar-schema.md) exactly —
-sidecars are only useful to tooling if they are **structurally uniform across
-projects**.
+Owns §1.19: emit `threat-model.yaml` and `threat-model.json` alongside the
+prose document so shared triage tooling can consume the model without parsing
+prose. Follow the schema in
+[sidecar-schema.md](../threat-model/references/sidecar-schema.md) for the YAML
+and the mapping in
+[json-report-schema.md](../threat-model/references/json-report-schema.md) for
+the JSON exactly — companions are only useful to tooling if they are
+**structurally uniform across projects**. Authority order: **prose > yaml >
+json**. The JSON is a flat, lossy export for consumers of `schema.json`; it is
+never a triage input.
 
 ## Principles
 
@@ -29,7 +35,14 @@ projects**.
   relative prose path plus SHA-256 of its exact UTF-8 bytes, and regenerate
   whenever the prose changes.
 - **Uniform shape only** — use the `schema: threat-model-sidecar/v2` fields as
-  given; extend with project-specific keys **only** under an `x-` prefix.
+  given; extend with project-specific keys **only** under an `x-` prefix. The
+  JSON schema forbids extensions entirely; what does not fit stays in the YAML.
+- **Never upgrade provenance.** The JSON collapses four provenance kinds into
+  two: `documented` and `maintainer` become `documented`; `inferred` and
+  `assumption` become `inferred`. The collapse only goes down — a record whose
+  sidecar provenance is `inferred` or `assumption` must never surface in the
+  JSON as `documented`. That direction hands a JSON-only consumer a licence the
+  model never granted.
 
 ## Procedure
 
@@ -86,6 +99,26 @@ projects**.
    security-critical floor. Project the §1.1 **generation metadata** to the
    top-level `generation` block (`model`, `effort`, `plugins[]`); omit the block
    only when the prose header records a fully human-authored model.
+4. Project the validated YAML to `threat-model.json` per
+   [json-report-schema.md](../threat-model/references/json-report-schema.md):
+   - Collapse provenance downward: `documented`/`maintainer` → `documented`,
+     `inferred`/`assumption` → `inferred`. A JSON block built from many sidecar
+     records takes the weakest of the set. Collapse `confidence` the same way:
+     `documented` + `maintainer`, `inferred` + `assumption`.
+   - Emit all nine schema disposition values, verbatim.
+     `OUT-OF-MODEL: dependency-contract` has no JSON value; a JSON-only
+     consumer falls through to `model_gap`, which escalates. Do not invent a
+     label for it.
+   - Flatten `entry_points` to one row per (entry point × parameter). An
+     `attacker_controllable: conditional` row must carry a non-empty
+     `condition`.
+   - For each known non-finding, name the covered in-scope components and the
+     discharged symptom in `why_safe`, and point `cites` at the discharging
+     entry in the same document (`properties_provided[3]` style). The JSON
+     drops the sidecar's `components` and `symptom` fields, so `why_safe` is
+     the only place left to carry the scope.
+   - Record `repository`, `commit` (`git rev-parse HEAD` in the modeled tree),
+     `date`, `scope_subpath`, and a short §1.2 `description`.
 
 ## Validation gate
 
@@ -128,7 +161,24 @@ Reject (and hand back) if any of these fail:
   records a fully human-authored model.
 - [ ] No key outside the schema except under an `x-` prefix.
 
+For `threat-model.json`:
+
+- [ ] Validates against `schema.json`.
+- [ ] `dispositions` is exactly the nine schema values, verbatim.
+- [ ] Provenance is never upgraded — no record whose sidecar provenance is
+      `inferred` or `assumption` appears as `documented`.
+- [ ] `confidence` is the collapsed sidecar count: `documented` + `maintainer`
+      and `inferred` + `assumption`.
+- [ ] Every `known_non_findings[]` entry's `why_safe` names the in-scope
+      components it covers and the symptom it discharges, and its `cites`
+      resolves to the row of the claim that discharges it — a real but
+      unrelated index does not pass.
+- [ ] `commit` is the real sha of the modeled tree, not a placeholder.
+
 ## Output
 
-`threat-model.yaml` next to the prose document, plus a one-line note of the
-`prose_version` it was derived from for the orchestrator's finalize gate.
+`threat-model.yaml` and `threat-model.json` in the repo root (inside the
+subdirectory for a scoped run), one level above the prose in `docs/`, plus a
+one-line note of the `prose_version` the YAML was derived from for the
+orchestrator's finalize gate. The JSON carries no prose binding — only `commit`
+and `date` — one more reason it is an export, not the model.

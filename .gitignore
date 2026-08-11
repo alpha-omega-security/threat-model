@@ -1,3 +1,6 @@
 __pycache__/
 *.py[cod]
 .nono-runs/
+out/
+out_batch*/
+work/

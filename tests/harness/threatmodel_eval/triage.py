@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .checks import DISPOSITIONS
+from .checks import DISPOSITIONS, ALL_IN_SCOPE, entry_components
 
 # Dispositions that close a report against the reporter.
 CLOSING = {
@@ -106,8 +106,33 @@ class TriageResult:
         return self.disposition in CLOSING and not self.escalated
 
     @property
+    def status(self) -> str:
+        """The §1.17 status qualifier: what a triager may *do* with this route.
+
+        ``closed`` (licensed outright), ``provisional`` (a ``relaxed``-policy
+        assumption close, re-openable on challenge), or ``escalated`` (the route
+        is right but its license cannot close it yet). Empty for ``VALID`` and
+        ``MODEL-GAP``, which are not closes and take no qualifier.
+
+        Note this is deliberately *not* ``effective``: an escalated finding keeps
+        its disposition and goes to the maintainer, whereas ``effective`` folds
+        it into ``MODEL-GAP`` for corpus scoring.
+        """
+        if self.disposition not in CLOSING:
+            return ""
+        if self.escalated:
+            return "escalated"
+        return "provisional" if self.provisional else "closed"
+
+    @property
     def effective(self) -> str:
-        """Disposition after escalation — an escalated close is open work."""
+        """Disposition after escalation, for corpus scoring only.
+
+        An escalated close is unfinished work, so scoring treats it as a gap.
+        This is a *scoring* convention: per §1.17 an escalated finding keeps its
+        disposition and routes to the maintainer, and must not be fed into the
+        §1.16 model-revision loop. Use ``status`` for what the triager records.
+        """
         return "MODEL-GAP" if self.escalated else self.disposition
 
 
@@ -151,8 +176,13 @@ class _Router:
             k = self.knf[ref]
             comp = sig.get("component")
             # §1.15 suppression is an *exact* match — a non-finding registered
-            # for one component must not silently discharge another.
-            if comp and k.get("component") and comp != k.get("component"):
+            # for one component must not silently discharge another. Read the
+            # scope through the shared helper: a `components: [...]` entry read
+            # as if it were singular yields no scope at all, which would turn
+            # every entry into a universal suppressor at precedence rule 1.
+            entry_comps = entry_components(k)
+            if (not comp or not entry_comps or ALL_IN_SCOPE in entry_comps
+                    or comp not in entry_comps):
                 return None
             return f"known_non_findings[{ref}]", k.get("provenance")
         return None
@@ -300,7 +330,13 @@ def triage(signal: dict, sidecar: dict, *, model_status: str | None = None) -> T
                 if disposition == "BY-DESIGN: property-disclaimed":
                     prop = router.disclaimed.get(
                         signal.get("concerns_disclaimed_property"), {})
-                    assumption_may_close = prop.get("tier") != "security-critical"
+                    # Fail closed on a missing or unrecognized tier. `tier` is
+                    # required on every disclaimed property, but an older or
+                    # hand-edited sidecar may omit it -- and reading "absent" as
+                    # "not security-critical" would let an assumption close
+                    # exactly the reports the security-critical floor exists to
+                    # protect. Only an explicit `correctness-only` opens the gate.
+                    assumption_may_close = prop.get("tier") == "correctness-only"
                 else:
                     assumption_may_close = True
 

@@ -37,7 +37,7 @@ Is this vulnerability report in scope for our threat model?
 Draft a SECURITY.md scope section.
 ```
 
-The skill runs draft-first by default: it orients on the codebase and existing docs, writes a provisional model with every claim tagged `(documented)` / `(maintainer)` / `(inferred)`, and collects open questions for the maintainers into waves. Answering a wave promotes the matching claims and retires the questions.
+The skill runs draft-first by default: it orients on the codebase and existing docs, writes a provisional model with every claim tagged documented / maintainer / inferred, and collects open questions for the maintainers into waves. Answering a wave promotes the matching claims and retires the questions.
 
 ### Answering the open questions
 
@@ -49,7 +49,7 @@ To resolve them, hand the answers back to the agent and ask it to continue — f
 Here are answers to the §1.18 open questions: Q3 yes, Q4 no (we never spawn processes), Q7 confirmed. Update the threat model.
 ```
 
-The agent re-runs the interview/authoring loop: it promotes each answered claim from `(inferred)` / `(assumption)` to `(maintainer, YYYY-MM)`, deletes the resolved questions, updates the affected contract-dimension rows and confidence counts, re-runs the backtest on the changed areas, and regenerates the YAML sidecar. There is no separate command — re-invoking the skill with the answers continues the same modeling exercise. You can also answer in waves; each pass shrinks §1.18 until the model reaches `accepted` (zero inferred/assumption claims left).
+The agent re-runs the interview/authoring loop: it promotes each answered claim from inferred / assumption to `(maintainer, YYYY-MM)`, deletes the resolved questions, updates the affected contract-dimension rows and confidence counts, re-runs the backtest on the changed areas, and regenerates the YAML sidecar. There is no separate command — re-invoking the skill with the answers continues the same modeling exercise. You can also answer in waves; each pass shrinks §1.18 until the model reaches `accepted` (zero inferred/assumption claims left).
 
 ### When to re-run
 
@@ -57,7 +57,7 @@ Re-run a threat-model update when something changes what the model describes. Se
 
 ### Generate non-interactively (`new_threat_model.py`)
 
-For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting `docs/threat-model.md` + `threat-model.yaml` into the output directory.
+For CI or batch runs, [`new_threat_model.py`](./new_threat_model.py) drives the whole flow from the command line: it clones a target repo, installs these skills into the checkout, runs a coding-agent CLI (GitHub Copilot or Claude) to produce the model, validates it, and feeds any errors back for up to a few self-repair passes before collecting `docs/threat-model.md` + `threat-model.yaml` + `threat-model.json` into the output directory.
 
 ```pwsh
 # needs `git` plus an authenticated `copilot` (or `claude`) CLI on PATH
@@ -72,9 +72,37 @@ It is pure-stdlib Python 3.9+ (no dependencies). Run `python new_threat_model.py
 
 The headless agent runs use broad internal permission flags so they can inspect a checkout and write the model without stopping for approval. To keep those permissions inside an OS-enforced filesystem boundary, follow the tested [`nono` sandbox guide](./docs/nono.md). The guide covers Claude, Copilot, batch runs, network limitations, and commands for checking the effective policy before starting an agent.
 
+### Vendor external security history (`fetch_security_context.py`)
+
+By default a generation run works only from what is in the clone; whether the agent also consults advisories or the issue tracker depends on its web tools. [`fetch_security_context.py`](./fetch_security_context.py) makes that input deterministic: it gathers the repository's published GitHub security advisories, the matching OSV.dev records (with fixing commits), security-related issues (labeled **or** mentioning security-type terms — repos like zlib use no labels at all), issues maintainers closed as not-planned/wontfix/invalid, and security/audit links discovered on the project homepage (how an external audit report linked from zlib.net gets found) into a single `security-context.md`. `--extra-url` additionally vendors the text of named pages, e.g. a commissioned audit report. The recon phase mines that file as maintainer-authored or maintainer-acknowledged public record — citing the original advisory/issue URLs as `(documented, <url>)` — and the backtest phase seeds its corpus from the vulnerability history. Per the leave-out list, none of the CVE history itself enters the published document.
+
+```pwsh
+# standalone (GITHUB_TOKEN recommended; --package adds an OSV ecosystem query)
+$env:GITHUB_TOKEN = "<token>"
+python fetch_security_context.py --repo https://github.com/libexpat/libexpat `
+    --package Debian:expat --out ./security-context.md
+
+# vendor a specific external document (audit report, security page) as well
+python fetch_security_context.py --repo https://github.com/madler/zlib `
+    --extra-url https://7asecurity.com/blog/2026/02/zlib-7asecurity-audit/ `
+    --out ./security-context.md
+
+# or let the runner fetch it into the clone before generation
+python new_threat_model.py --repo https://github.com/libexpat/libexpat `
+    --fetch-security-context --out ./out/libexpat
+
+# or reuse a pre-built file
+python new_threat_model.py --repo https://github.com/libexpat/libexpat `
+    --security-context ./security-context.md --out ./out/libexpat
+```
+
+Page fetches are SSRF-guarded: the homepage scan, every `--extra-url`, and every redirect hop must be plain http(s) to a host resolving only to public addresses — `file://` URLs, loopback/private/link-local ranges, and cloud metadata endpoints are refused and recorded as notes in the output. A redirect that crosses hosts drops the `Authorization` header so a GitHub token cannot follow it off `api.github.com`. A fetch failure never aborts generation — the run degrades to repo-only and the prompt drops the reference to the file.
+
+Because the vendored issue bodies and page text are written by arbitrary third parties — anyone can file an issue — both the file header and the generation prompt mark the content as untrusted data rather than instructions, and tell the agent to report anything asking it to run commands, fetch unlisted URLs, or reveal credentials as a prompt-injection attempt. That framing is mitigation, not a guarantee; it is a further reason to run generation in a container or under [nono](#sandboxing-a-run-with-nono) when the target is untrusted. The vendored file is copied next to the output artifacts so a reviewer can see exactly which external history informed the run.
+
 ## What you get
 
-A `docs/threat-model.md` (or similar) with:
+A `threat-model.md` (or similar) with:
 
 - scope, intended use, and out-of-scope components
 - per-parameter input trust table (or default + exceptions for large APIs)
@@ -85,7 +113,8 @@ A `docs/threat-model.md` (or similar) with:
 - downstream responsibilities and known misuse patterns
 - recurring false positives that scanners report against the project
 - a closed set of triage dispositions, each citing the section that licenses it
-- an optional machine-readable YAML sidecar for automated triage
+
+A machine-readable YAML sidecar (`threat-model.yaml`) for automated triage, plus a flat JSON export (`threat-model.json`) conforming to [`schema.json`](./schema.json) for external consumers — authority order prose > yaml > json
 
 ## Structure
 
@@ -98,6 +127,7 @@ skills/
 │       ├── output-structure.md       # the §1.1–§1.19 document spec, provenance tags, disposition set
 │       ├── question-bank.md          # maintainer questions, grouped by wave
 │       ├── sidecar-schema.md         # the threat-model.yaml schema
+│       ├── json-report-schema.md     # the threat-model.json export mapping
 │       ├── self-check.md             # the finalize gates
 │       ├── glossary.md               # plain-language definitions of the jargon
 │       └── worked-example.md         # a zlib flavor sketch
@@ -106,7 +136,7 @@ skills/
 ├── threat-model-interview/           # maintainer question waves (phase 3.4)
 ├── threat-model-authoring/           # draft the prose document (phase 3.5)
 ├── threat-model-backtest/            # validate against historical findings (phase 3.6)
-├── threat-model-sidecar/             # emit + validate threat-model.yaml (§1.19)
+├── threat-model-sidecar/             # emit + validate threat-model.yaml + .json (§1.19)
 └── threat-model-triage/              # downstream: route one finding to a disposition
 ```
 

@@ -175,9 +175,14 @@ properties_disclaimed:        # from §1.12
   - id: decompression-bomb-resistance
     components: [core-inflate]
     conditions: "no caller-enforced output budget"
-    tier: correctness-only    # security-critical | correctness-only (gates assumption closes)
+    # Required. security-critical | correctness-only. Gates assumption closes,
+    # so tier by the worst impact of a report this disclaimer would close --
+    # here, unbounded allocation and OOM -- not by how the project feels
+    # about the property. Triage fails closed on a missing tier, so an untiered
+    # disclaimer escalates instead of answering.
+    tier: security-critical
     false_friend: false
-    provenance: {kind: documented, source: "zlib manual"}
+    provenance: {kind: documented, source: "zlib manual, `uncompress` note on caller-supplied output size"}
   - id: crc-as-mac
     components: [gz-convenience]
     conditions: "all builds"
@@ -194,14 +199,20 @@ downstream_responsibilities:  # from §1.13
 
 known_misuses:                # from §1.14
   - id: crc-used-as-mac
-    component: gz-convenience
+    components: [gz-convenience]   # non-empty list; `all-in-scope` permitted
     pattern: "using CRC-32 to authenticate attacker-controlled data"
     safer_alternative: "authenticate the framed data with a MAC"
     provenance: {kind: maintainer, date: "2025-03"}
 
 known_non_findings:           # from §1.15
   - id: bounded-output-write
-    component: core-inflate
+    # Non-empty list of declared in-scope components. `all-in-scope` is NOT
+    # allowed here (it is, for known_misuses): a non-finding fires first in the
+    # precedence order, so one that matches everywhere suppresses everything.
+    # Every `discharged_by` claim must itself cover each component listed here,
+    # and at least one must be a §1.11/§1.12 property.
+    components: [core-inflate]
+    symptom: out-of-bounds-write   # required: symptom or attack class, not just a location
     tool_pattern: "write past the inflate output buffer"
     conditions: "valid caller buffer; report shows no write beyond supplied length"
     discharged_by: [output-bound-honored]
@@ -230,6 +241,13 @@ disposition_precedence:       # from §1.17; first matching rule wins
   - VALID
   - VALID-HARDENING
   - MODEL-GAP
+
+# Optional. A closed enum fixed by §1.17 and identical in every model, so it is
+# recognized but never required; emit it only if your tooling wants it inline.
+disposition_statuses:         # what the triager may DO with a closing route
+  - closed                    # licensed by a documented/maintainer claim
+  - provisional               # relaxed-policy assumption close; cite the QN, re-open on challenge
+  - escalated                 # route is right, authority is missing -- NOT a MODEL-GAP
 ```
 
 ## Field notes
@@ -239,7 +257,8 @@ disposition_precedence:       # from §1.17; first matching rule wins
   `contract_dimensions`, `outputs`, `adversaries`, `dependency_policy`,
   `dependencies`, `build_policy`, `build_flags`, `properties_claimed`,
   `properties_disclaimed`, `downstream_responsibilities`, `known_misuses`,
-  `known_non_findings`, `dispositions`, and `disposition_precedence`. Lists may be empty only when the
+  `known_non_findings`, `dispositions`, and `disposition_precedence`. Lists may
+  be empty only when the
   prose explicitly supports that absence. `triage_policy` and `generation` are
   optional recognized top-level keys (see below): they may appear without an
   `x-` prefix but are not required. Any other unknown key requires an `x-` prefix.
@@ -267,7 +286,20 @@ disposition_precedence:       # from §1.17; first matching rule wins
   operand has one or more `control_kinds` from `data`, `size`,
   `rate`, `type-class`, `callback-code`, `object-topology`,
   `collaborator-implementation`, `resource-name`, or `serialized-state`.
-  Project-specific values use an `x-` prefix. IDs are unique within their list.
+  Project-specific values use an `x-` prefix.
+- **`obligation_id` is unique across ALL entry points, not within one.** The IDs
+  are nested inside `entry_points[].parameters[]`, which makes "unique within
+  its list" the natural reading and the wrong one — `SC.obligation-id-unique`
+  compares them globally. One obligation genuinely shared by several entry
+  points (every `gz*` reader needing `output buffer >= len`) keeps **one** ID,
+  referenced from each parameter. Do **not** clone it per entry point to dodge
+  the check: the clones fragment the §1.13 responsibility that `enforces[]`
+  points at, and `SC.reference-integrity` will not notice, because it detects
+  dangling references and never under-coverage. Name obligations for the
+  obligation, not the caller — `cap-output-buffer`, not `gzread-cap-output`.
+  Entry points sharing an ID must state the same `caller_must_enforce` text;
+  `SC.obligation-id-unique` fails when one ID is bound to two different
+  requirements, which is the collision the global namespace exists to catch.
 - `contract_dimensions[].dimension` is one of `numeric-domain`,
   `failure-atomicity`, `recursive-cyclic-topology`, `callback-execution`,
   `serialization-reconstruction`, `reference-lifecycle`,
@@ -324,8 +356,35 @@ disposition_precedence:       # from §1.17; first matching rule wins
 - Claimed properties require `kind`, non-empty `components`, `conditions`,
   `tier`, symptoms, and provenance. `kind` is one of `memory-safety`,
   `output-sanitization`, `resource-bound`, `availability`, `confidentiality`,
-  `integrity`, `authentication`, `correctness`, or an `x-` value. Disclaimed
-  properties require components, conditions, `false_friend`, and provenance.
+  `integrity`, `authentication`, `correctness`, or an `x-` value. A claimed
+  property with `provenance.kind: inferred` **must not** carry
+  `tier: security-critical` — an unratified guarantee at that tier is a claim the
+  project never made (§1.11).
+- Disclaimed properties require components, conditions, `false_friend`, `tier`,
+  and provenance. **`tier` is required, not optional**: triage fails closed on a
+  missing tier, so an untiered disclaimer escalates every matching report
+  instead of answering it. `correctness-only` is what grants an `assumption`
+  permission to close under `relaxed`, so it is a decision, not a default. Tier
+  by the worst impact of a report the disclaimer would close.
+- `known_non_findings[]` and `known_misuses[]` carry a non-empty `components[]`
+  list. The older singular `component: <name>` is still accepted so existing
+  sidecars keep validating, but emit the list form. The sentinel `all-in-scope`
+  is allowed for `known_misuses[]`, which close nothing, and **refused for
+  `known_non_findings[]`**: those fire first in the precedence order, so an
+  entry that matches everywhere is a universal suppressor — the same thing
+  §1.15 forbids when it bans "any in-scope family" as a component.
+- Every `known_non_findings[]` entry needs a `symptom` (or attack class)
+  alongside its components: an entry identified only by location is a scope
+  question, and that is an `OUT-OF-MODEL` route rather than a precedence-1
+  suppression. Every `discharged_by` ID that names a claimed or disclaimed
+  property must resolve to one whose own `components` cover every component the
+  entry lists (`SC.non-finding-discharge-scope`) — a disclaimer written for the
+  compressor does not discharge a report against the decompressor.
+- Match conditions describe the behaviour of the code. A condition that turns on
+  the reporter's evidence — no reproducer, no proof-of-concept, no demonstrated
+  reachability — is invalid, and so is discharging an entry by a maintainer
+  statement about process rather than by a claim in the model (§1.15). Neither
+  is machine-checkable; both are self-check Gate 3 items.
 - `downstream_responsibilities[].enforces[]` references stable obligation,
   property, invariant, or must-not-assume IDs.
   `known_non_findings[]` records component, optional sink, tool pattern,

@@ -24,6 +24,13 @@ equivalent document following
 [output-structure.md](../threat-model/references/output-structure.md)). If no
 such model exists, stop and recommend producing one first.
 
+Route from the prose and the `threat-model.yaml` sidecar, never from the
+`threat-model.json` export. The JSON drops `disposition_precedence`,
+disclaimed-property tiers, and known-non-finding component/symptom scope, so a
+consumer holding only the JSON cannot apply §1.17 first-match ordering or the
+security-critical floor. It states the contract; it cannot route a report
+against it.
+
 ## Routing algorithm (the §1.1 triager quick-start)
 
 1. **Locate the sink** → look up its row in the **§1.7** input-trust table (or the
@@ -73,22 +80,34 @@ such model exists, stop and recommend producing one first.
   not to make an ad-hoc call on the report.
 - **Closure constraint (all statuses), governed by the declared triage policy.**
   Any disposition that closes a report against the reporter (`OUT-OF-MODEL: *`,
-  `BY-DESIGN: *`, `KNOWN-NON-FINDING`) must be licensed by a *(documented)* or
-  *(maintainer)* claim, with one policy-scoped exception for *(assumption)*:
-  - An *(inferred)* licensing claim always **escalates** instead of closing.
+  `BY-DESIGN: *`, `KNOWN-NON-FINDING`) must be licensed by a **documented** or
+  **maintainer** claim, with one policy-scoped exception for **assumption**:
+  - An **inferred** licensing claim always **escalates** instead of closing.
   - Read the header's **triage policy**. Under **`strict`** (default) an
-    *(assumption)* also escalates only. Under **`relaxed`** an *(assumption)*
+    **assumption** also escalates only. Under **`relaxed`** an **assumption**
     may close the **low-blast-radius** routes — `trusted-input`,
     `adversary-not-in-scope`, `unsupported-component`, `non-default-build`, and a
     *non*-security-critical `property-disclaimed` — as a **provisional** close:
     cite the `QN`, note it re-opens on challenge, and leave the §1.18 item open.
-  - **Security-critical floor (both policies).** An *(assumption)* never licenses
+  - **Security-critical floor (both policies).** An **assumption** never licenses
     `KNOWN-NON-FINDING`, a `property-disclaimed` whose property is
     `security-critical`, or `dependency-contract`; those escalate unless
-    *(documented)* / *(maintainer)*.
+    **documented** / **maintainer**.
+  - **Silence floor (both policies, every provenance).** A §1.12 disclaimer that
+    rests on the *absence* of a statement rather than on a stated limit never
+    closes a `security-critical` report, a `KNOWN-NON-FINDING`, or
+    `dependency-contract` — even tagged **documented**. Escalate instead.
+  - An untiered §1.12 disclaimer is treated as `security-critical`, not as the
+    weaker case. Do not read a blank tier as permission.
   - `VALID` routings are unaffected. A model marked `accepted` while retaining
-    *(inferred)* or *(assumption)* claims is invalid; return it for status/model
+    **inferred** or **assumption** claims is invalid; return it for status/model
     correction.
+- **An escalated finding is not a `MODEL-GAP`.** Escalation means the route is
+  right and the authority to use it is missing; `MODEL-GAP` means there is no
+  route. Keep the disposition, mark it `escalated`, and name the §1.18 question
+  that would unblock it. Do not feed it into the §1.16 revision loop — that loop
+  is for genuine gaps, and filling it with escalations manufactures phantom
+  model defects.
 - **Cite provenance.** When a disposition closes a report, cite the tagged claim
   (e.g., "not a bug — §1.12 disclaims this property *(maintainer, 2025-03)*", or
   "provisionally out of model — §1.7 *(assumption, Q6)* under relaxed policy;
@@ -96,6 +115,17 @@ such model exists, stop and recommend producing one first.
 
 ## Output
 
-The disposition, the citing section(s), the provenance of the licensing claim,
-and — for `MODEL-GAP` or a two-way route — the model-revision or sharpening
+The disposition **and its status**, written as `DISPOSITION (status)` — for
+example `OUT-OF-MODEL: trusted-input (escalated)`. The status is one of:
+
+| Status | Meaning |
+| --- | --- |
+| `closed` | Licensed by a **documented** or **maintainer** claim. The report is answered. |
+| `provisional` | A `relaxed`-policy **assumption** close. Cite the `QN`; re-opens on challenge. |
+| `escalated` | The route is right but its license cannot close it. Name the blocking `QN`. |
+
+`VALID` and `MODEL-GAP` are not closes and take no status qualifier.
+
+Also report the citing section(s), the provenance of the licensing claim, and —
+for `MODEL-GAP` or a two-way route — the model-revision or sharpening
 recommendation to hand back to the orchestrator.

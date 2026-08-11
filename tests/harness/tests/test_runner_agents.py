@@ -11,6 +11,8 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
+
 _REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO))
 
@@ -37,6 +39,16 @@ def test_prompt_points_at_the_agents_own_skill_path():
     copilot = build_prompt("zlib", "", "strict", None, "high", "copilot")
     assert ".claude/skills" in claude and ".github/skills" not in claude
     assert ".github/skills" in copilot and ".claude/skills" not in copilot
+
+
+def test_skill_descriptions_fit_copilot_limit():
+    oversized = {}
+    for skill_path in sorted((_REPO / "skills").glob("*/SKILL.md")):
+        frontmatter = skill_path.read_text(encoding="utf-8").split("---", 2)[1]
+        description = yaml.safe_load(frontmatter)["description"]
+        if len(description) > 1024:
+            oversized[skill_path.parent.name] = len(description)
+    assert not oversized, f"skill descriptions exceed 1024 characters: {oversized}"
 
 
 # --- streaming --------------------------------------------------------------
