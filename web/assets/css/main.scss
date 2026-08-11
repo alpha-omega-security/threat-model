@@ -126,7 +126,8 @@ blockquote p:last-child {
 }
 
 .wrap {
-  width: min(calc(100% - 2.5rem), var(--wrap));
+  width: calc(100% - 2.5rem);
+  max-width: var(--wrap);
   margin-inline: auto;
 }
 
