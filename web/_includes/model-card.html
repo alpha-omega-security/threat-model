@@ -1,0 +1,19 @@
+{% assign model = include.model %}
+<article class="model-card"
+         data-model-card
+         data-status="{{ model.status | slugify }}"
+         data-search="{{ model.title | append: ' ' | append: model.description | append: ' ' | append: model.languages | downcase | escape }}">
+  <div class="model-card-top">
+    <span class="status status-{{ model.status | slugify }}">{{ model.status }}</span>
+    <span class="model-language">{{ model.languages | join: " · " }}</span>
+  </div>
+  <h2><a href="{{ model.url | relative_url }}">{{ model.title }}</a></h2>
+  <p>{{ model.description }}</p>
+  <dl class="model-card-stats">
+    <div><dt>{{ model.claimed_properties }}</dt><dd>claimed properties</dd></div>
+    <div><dt>{{ model.entry_point_rows }}</dt><dd>input rows</dd></div>
+    <div><dt>{{ model.open_question_count }}</dt><dd>open questions</dd></div>
+  </dl>
+  <a class="card-link" href="{{ model.url | relative_url }}">Explore model →</a>
+</article>
+

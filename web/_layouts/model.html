@@ -1,0 +1,68 @@
+---
+layout: default
+---
+<header class="model-hero section">
+  <div class="wrap">
+    <a class="eyebrow back-link" href="{{ '/models/' | relative_url }}">← Model collection</a>
+    <div class="model-title-row">
+      <div>
+        <div class="badge-row">
+          <span class="status status-{{ page.status | slugify }}">{{ page.status }}</span>
+          <span class="chip">{{ page.project_kind }}</span>
+        </div>
+        <h1>{{ page.title }}</h1>
+        <p class="lede">{{ page.description }}</p>
+      </div>
+      <div class="confidence-card" aria-label="Model confidence">
+        <span class="confidence-label">Claim provenance</span>
+        <strong>{{ page.confidence_documented }}</strong>
+        <span>documented</span>
+        <strong>{{ page.confidence_inferred }}</strong>
+        <span>inferred</span>
+      </div>
+    </div>
+
+    <dl class="model-metadata">
+      <div>
+        <dt>Target</dt>
+        <dd><a href="{{ page.target_repository }}">{{ page.target_name }}</a></dd>
+      </div>
+      <div>
+        <dt>Modeled tree</dt>
+        <dd><a href="{{ page.target_repository }}/tree/{{ page.modeled_commit }}"><code>{{ page.modeled_commit | slice: 0, 12 }}</code></a></dd>
+      </div>
+      <div>
+        <dt>Model date</dt>
+        <dd>{{ page.modeled_date | date: "%Y-%m-%d" }}</dd>
+      </div>
+      <div>
+        <dt>Language</dt>
+        <dd>{{ page.languages | join: ", " }}</dd>
+      </div>
+    </dl>
+
+    <div class="artifact-actions">
+      {% for artifact in page.artifacts %}
+        <a class="button {% if forloop.first %}button-primary{% else %}button-secondary{% endif %}"
+           href="{{ site.repository_url }}/raw/{{ site.repository_branch }}/{{ artifact.path }}">
+          Download {{ artifact.label }}
+        </a>
+      {% endfor %}
+      <a class="text-link" href="{{ page.source_directory }}">View source files ↗</a>
+    </div>
+  </div>
+</header>
+
+<article class="section model-content">
+  <div class="wrap article-grid">
+    <aside class="article-aside">
+      <strong>Example status</strong>
+      <p>This is a version-bound demonstration model, not an endorsement by the target project.</p>
+      <a href="#open-questions">Review open questions</a>
+    </aside>
+    <div class="prose">
+      {{ content }}
+    </div>
+  </div>
+</article>
+

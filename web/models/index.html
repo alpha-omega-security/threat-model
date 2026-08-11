@@ -1,0 +1,48 @@
+---
+title: Example models
+description: Version-bound, quality-gated example threat models with downloadable prose, YAML, and JSON artifacts.
+script: /assets/js/model-filter.js
+---
+
+<header class="page-hero">
+  <div class="wrap">
+    <span class="eyebrow">Model collection</span>
+    <h1>Concrete contracts, not blank templates.</h1>
+    <p class="lede">Each example is bound to a source commit and published with its status, confidence, unresolved questions, and machine-readable artifacts.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="filter-bar" data-model-filters>
+      <label>
+        Search models
+        <input type="search" placeholder="Project, language, or contract…" data-model-search>
+      </label>
+      <label>
+        Status
+        <select data-model-status>
+          <option value="">All statuses</option>
+          <option value="unratified-draft">Unratified draft</option>
+          <option value="accepted">Accepted</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="model-grid" data-model-grid>
+      {% assign sorted_models = site.models | sort: "title" %}
+      {% for model in sorted_models %}
+        {% include model-card.html model=model %}
+      {% endfor %}
+    </div>
+    <p data-model-empty hidden>No models match those filters.</p>
+
+    <div class="collection-note">
+      <strong>A deliberately curated collection.</strong>
+      New models should add a distinct project shape, pass the repository’s
+      validation gates, expose their provenance, and remain pinned to the tree
+      they describe. Generated does not mean project-endorsed.
+    </div>
+  </div>
+</section>
+

@@ -1,0 +1,145 @@
+---
+title: Security contracts for open source
+description: Evidence-backed threat models that state what a project assumes, guarantees, disclaims, and leaves to downstream users.
+---
+
+<section class="hero section">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Threat modeling for open source</span>
+      <h1>Make the implicit security contract <em>explicit.</em></h1>
+      <p class="lede">
+        Agent skills that turn source, documentation, and maintainer decisions
+        into a version-bound model downstream users and vulnerability triagers
+        can actually apply.
+      </p>
+      <div class="button-row">
+        <a class="button button-primary" href="{{ '/quickstart/' | relative_url }}">Build your first model</a>
+        <a class="button button-secondary" href="{{ '/models/' | relative_url }}">Explore examples</a>
+      </div>
+    </div>
+
+    <div class="contract-panel" aria-label="Security contract dimensions">
+      <div class="contract-label">
+        <span>security-contract.yml</span>
+        <span>version bound</span>
+      </div>
+      <ol class="contract-list">
+        <li><b>01</b><span>Which inputs and adversaries are untrusted?</span></li>
+        <li><b>02</b><span>Which properties does the project guarantee?</span></li>
+        <li><b>03</b><span>Which properties are explicitly disclaimed?</span></li>
+        <li><b>04</b><span>What must the caller or integrator enforce?</span></li>
+      </ol>
+      <div class="not-audit">A contract, not a vulnerability report</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <span class="eyebrow">Two readers, one shared model</span>
+    <h2>Security decisions become usable.</h2>
+    <p class="lede">
+      The model records not just scope, but the evidence and authority behind
+      every claim.
+    </p>
+    <div class="audience-grid">
+      <article class="audience-card">
+        <span class="number">01 / Integrators</span>
+        <h3>Know what you inherit</h3>
+        <p>See which inputs remain untrusted, which guarantees are safe to rely on, and which controls belong downstream.</p>
+      </article>
+      <article class="audience-card">
+        <span class="number">02 / Maintainers</span>
+        <h3>Review concrete claims</h3>
+        <p>React to a draft with proposed answers instead of starting from an empty security questionnaire.</p>
+      </article>
+      <article class="audience-card">
+        <span class="number">03 / Triagers</span>
+        <h3>Route findings consistently</h3>
+        <p>Apply a closed disposition set with citations, provenance, and fail-safe escalation when the model is incomplete.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section section-muted">
+  <div class="wrap">
+    <span class="eyebrow">One model, three artifacts</span>
+    <h2>Readable by people and tools.</h2>
+    <div class="artifact-grid">
+      <article class="card artifact-card" data-format="MD">
+        <h3>Canonical prose</h3>
+        <p><code>threat-model.md</code> explains the contract, its evidence, open questions, and triage rules.</p>
+      </article>
+      <article class="card artifact-card" data-format="YML">
+        <h3>Structured sidecar</h3>
+        <p><code>threat-model.yaml</code> preserves the model structure and provenance for automated triage.</p>
+      </article>
+      <article class="card artifact-card" data-format="JSON">
+        <h3>Portable export</h3>
+        <p><code>threat-model.json</code> provides a deliberately conservative, schema-backed interchange format.</p>
+      </article>
+    </div>
+    <div class="authority-line" aria-label="Artifact authority order">
+      <b>prose</b><span>›</span><b>YAML</b><span>›</span><b>JSON</b>
+      <span>authority order</span>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="wrap">
+    <span class="eyebrow">The workflow</span>
+    <h2>Draft first. Challenge it. Then publish.</h2>
+    <p class="lede">Specialist skills divide the work while the orchestrator preserves one evidence trail.</p>
+    <div class="process-grid" aria-label="Threat-model workflow">
+      <div class="process-step"><span>3.1</span><strong>Orient</strong></div>
+      <div class="process-step"><span>3.2</span><strong>Mine docs</strong></div>
+      <div class="process-step"><span>3.3</span><strong>Map surface</strong></div>
+      <div class="process-step"><span>3.4</span><strong>Interview</strong></div>
+      <div class="process-step"><span>3.5</span><strong>Draft</strong></div>
+      <div class="process-step"><span>3.6</span><strong>Backtest</strong></div>
+      <div class="process-step"><span>3.7</span><strong>Sign off</strong></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="featured-model">
+      <div class="featured-copy">
+        <span class="eyebrow">Featured model</span>
+        <h2>zlib</h2>
+        <p class="lede">A native compression library with one clear untrusted surface and several easy-to-confuse caller obligations.</p>
+        <p>
+          The example separates attacker-controlled compressed bytes from
+          caller-trusted buffers and lengths, distinguishes checksum integrity
+          from authenticity, and records output budgeting as a downstream duty.
+        </p>
+        <a class="button button-light" href="{{ '/models/zlib/' | relative_url }}">Explore the zlib model</a>
+      </div>
+      <div class="featured-visual" aria-label="Simplified zlib trust boundary">
+        <div class="boundary-diagram">
+          <div class="boundary-node">Attacker-controlled compressed bytes</div>
+          <div class="boundary-arrow"><span>trust boundary</span></div>
+          <div class="boundary-node">zlib inflate APIs</div>
+          <div class="boundary-arrow"><span>untrusted output</span></div>
+          <div class="boundary-node">Calling application and downstream sinks</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="wrap">
+    <span class="eyebrow">Start with evidence</span>
+    <h2>Model the project you actually ship.</h2>
+    <p class="lede">Install the skills, point an agent at a checkout, and review a concrete draft.</p>
+    <div class="button-row">
+      <a class="button button-primary" href="{{ '/quickstart/' | relative_url }}">Read the quickstart</a>
+      <a class="button button-secondary" href="{{ site.repository_url }}">View on GitHub</a>
+    </div>
+  </div>
+</section>
