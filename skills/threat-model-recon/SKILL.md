@@ -140,8 +140,12 @@ tracker cites when closing reports.
 Hand back to the orchestrator:
 
 1. **Project-type classification** — in-process library / CLI / daemon / network
-   service / distributed system (drives whether roles split and whether §1.4
-   needs a diagram and §1.10 a Byzantine actor).
+   service / distributed system (drives whether roles split, whether §1.4
+   needs a diagram and §1.10 a Byzantine actor, and whether the
+   authorization-scope contract dimension is substantive: a daemon, network
+   service, or distributed system must say which operations require which
+   role and who owns the check, while an in-process library usually disclaims
+   or N/As it in one row per component).
 2. **Component-family table** (draft of §1.2) — family, representative entry
    point, touches-outside-process?, in/out of model.
 3. **Out-of-scope inventory** (draft of §1.3) — shipped-but-unsupported code +

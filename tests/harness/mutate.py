@@ -268,7 +268,7 @@ def build_cases() -> list[MutationCase]:
         "corrupt the header count (desyncs both the body and the sidecar)",
         {"G1.confidence-matches", "SC.confidence-matches-header"},
         text=model.replace(
-            "68 documented / 0 maintainer / 7 inferred",
+            "71 documented / 0 maintainer / 7 inferred",
             "99 documented / 0 maintainer / 8 inferred", 1))
 
     add("drop-open-questions",
@@ -400,6 +400,14 @@ def build_cases() -> list[MutationCase]:
     sc["contract_dimensions"].pop()
     add("sidecar-missing-contract-dimension",
         "one in-scope component loses a required contract-dimension row",
+        {"SC.contract-dimensions"}, sc=sc)
+
+    sc = copy.deepcopy(sidecar)
+    sc["contract_dimensions"] = [r for r in sc["contract_dimensions"]
+                                 if r["dimension"] != "authorization-scope"]
+    add("sidecar-silent-on-authorization",
+        "the model drops every authorization-scope row and goes silent on "
+        "who may invoke what",
         {"SC.contract-dimensions"}, sc=sc)
 
     sc = copy.deepcopy(sidecar)

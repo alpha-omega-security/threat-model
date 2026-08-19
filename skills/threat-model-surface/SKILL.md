@@ -107,9 +107,13 @@ reported against specific sinks, and the triager must look up the exact paramete
 
 Do not collapse all control into a boolean. Use one or more **control kinds**:
 `data`, `size/rate`, `type/class`, `callback/code`, `object-graph topology`,
-`collaborator implementation`, `resource-name`, `serialized state`, or a
-project-specific `x-` kind. Distinguish an attacker choosing data passed
-through a trusted callback from an attacker choosing the callback itself.
+`collaborator implementation`, `resource-name`, `serialized state`,
+`credential` (a secret presented to authenticate), `principal` (an identity,
+tenant, or role an authorization decision reads), or a project-specific `x-`
+kind. Distinguish an attacker choosing data passed through a trusted callback
+from an attacker choosing the callback itself — and an attacker supplying a
+record ID or role name from one merely supplying data, because the former is
+what an authorization guard has to evaluate.
 
 Also capture size/shape/rate assumptions (bounded? streaming? memory-mapped?),
 and flag any input whose magnitude drives resource allocation (memory, threads,
@@ -130,6 +134,7 @@ not allowed:
 | reference and object lifecycle | claimed / disclaimed / N/A / unresolved | weak/soft references, GC clearing, invalidation | §1.5 / §1.11 / §1.12 / §1.18 | *(inferred, QN)* or cited source |
 | concurrency and reentrancy | claimed / disclaimed / N/A / unresolved | shared mutation, callback reentry | §1.5 / §1.11 / §1.12 / §1.18 | *(inferred, QN)* or cited source |
 | resource complexity | claimed / disclaimed / N/A / unresolved | CPU, heap, stack, I/O as a function of input/state | §1.7 / §1.11 / §1.12 / §1.18 | *(inferred, QN)* or cited source |
+| authorization scope | claimed / disclaimed / N/A / unresolved | who may invoke which operations; which side owns the check | §1.7 / §1.10 / §1.11 / §1.12 / §1.18 | *(inferred, QN)* or cited source |
 
 Add project-type rows when needed, such as Unicode/canonicalization,
 probabilistic-result semantics, protocol state transitions, clock behavior, or

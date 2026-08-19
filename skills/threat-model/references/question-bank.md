@@ -147,8 +147,27 @@ needed to keep the wave within 3–7 questions; do not defer either required top
     are provided only where explicitly documented; otherwise downstream users
     must not infer them. Confirm and name any stronger guarantees.
 
+## Authorization and privilege (→ §1.7/§1.10/§1.12)
+
+Substantive for daemons, network services, and anything with roles; usually a
+single confirmation of question 39 for an in-process library.
+
+39. We believe every caller that can reach the API operates at a single trust
+    level, and the project performs no authorization of its own — any caller
+    may invoke any operation. Confirm, or name the operations that are
+    restricted and to whom. (For a library this one confirmation usually
+    settles the authorization-scope rows.)
+40. For each interface with roles (user/admin, per-tenant, read-only), we
+    propose this role table: `<roles and the operations each may invoke>`.
+    Confirm which operations require which role, and whether the check is this
+    project's job or the deployment's.
+41. Is any operation *intentionally* reachable by any authenticated caller,
+    where a reporter might expect a narrower check? A confirmed "yes, that is
+    intended" becomes a §1.12 disclaimer — the statement that closes that
+    entire class of reports as by-design instead of escalating each one.
+
 ## Coexistence (meta — ask in wave 1 when a prior model exists)
 
-39. A prior `SECURITY.md` / doc titled "threat model" already states model
+42. A prior `SECURITY.md` / doc titled "threat model" already states model
     content. Should the new document (a) replace that section, (b) become the
     canonical model it links to, or (c) sit alongside as an expansion?
