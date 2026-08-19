@@ -43,8 +43,10 @@ against it.
    Do not infer failure semantics from the parameter trust row alone.
 3. **Check the attacker capability and control kind** the finding requires
    against **§1.7/§1.10**. Distinguish control of data from control of size,
-   type/class, callback code, object topology, collaborator implementation, or
-   serialized state.
+   type/class, callback code, object topology, collaborator implementation,
+   serialized state, credential, or principal. For an authorization finding the
+   capability question is a privilege question: which §1.10 actor row holds the
+   role the finding needs, and does its Capabilities-excluded cell rule it out.
 4. **Check the affected component** against **§1.2/§1.3**, and any required build
    flag against **§1.6**.
 5. If the root cause lies in a **dependency**, apply **§1.9**.
@@ -108,6 +110,21 @@ against it.
   that would unblock it. Do not feed it into the §1.16 revision loop — that loop
   is for genuine gaps, and filling it with escalations manufactures phantom
   model defects.
+- **Authorization findings take existing routes; there is no authorization
+  disposition.** The check was the caller's job (§1.7 obligation) →
+  `trusted-input`. The actor lacks the required privilege (§1.10 excluded
+  capability) → `adversary-not-in-scope`. The access is disclaimed ("any
+  authenticated caller may invoke this", §1.12) → `BY-DESIGN:
+  property-disclaimed`. A claimed `authorization` property is violated →
+  `VALID`. No such row anywhere → `MODEL-GAP`: the model skipped its
+  authorization-scope dimension, which is a §1.16 revision, not a new label.
+- **Sibling asymmetry is not, by itself, a finding.** Two endpoints handle the
+  same object and one applies a narrower check than the other. The broader path
+  can be the intended contract and the narrower one defence-in-depth, so route
+  on the **claimed** authorization scope (the matrix row and its §1.11/§1.12
+  claim), never on the difference between siblings. If the model records no
+  claimed scope for either path, that is `MODEL-GAP` — do not promote the
+  asymmetry itself to `VALID`.
 - **Cite provenance.** When a disposition closes a report, cite the tagged claim
   (e.g., "not a bug — §1.12 disclaims this property *(maintainer, 2025-03)*", or
   "provisionally out of model — §1.7 *(assumption, Q6)* under relaxed policy;

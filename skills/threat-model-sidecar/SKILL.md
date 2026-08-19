@@ -57,7 +57,7 @@ never a triage input.
    - §1.7 → `entry_points[].parameters[]` — every attacker-controllable
      parameter must have a non-empty `caller_must_enforce` and at least one
      value in its `control_kinds` array.
-   - §1.7-§1.12 → `contract_dimensions[]` — all eight required dimensions for
+   - §1.7-§1.12 → `contract_dimensions[]` — all nine required dimensions for
      every in-scope component, including explicit `not-applicable` rows;
      claimed/disclaimed rows reference stable property IDs and unresolved rows
      reference §1.18 question IDs.

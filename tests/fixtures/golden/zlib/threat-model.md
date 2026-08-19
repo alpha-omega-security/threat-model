@@ -14,7 +14,7 @@
 - **Provenance legend**: *(documented, source)* = stated in the named public
   source; *(maintainer, YYYY-MM)* = confirmed by a maintainer on that date;
   *(inferred, QN)* = reasoned from code and mapped to question `QN` in §1.18.
-- **Draft confidence**: 68 documented / 0 maintainer / 7 inferred.
+- **Draft confidence**: 71 documented / 0 maintainer / 7 inferred.
 - **Backtest note**: routed a 12-item corpus in 6 clusters across all 8
   applicable contract dimensions; 9 items carry a real historical outcome, 3 are
   synthesized. Dispositions: 4 `VALID`, 3 `BY-DESIGN: property-disclaimed`, 1
@@ -145,6 +145,7 @@ component family):
 | core-inflate | reference lifecycle | claimed | stream lifetime follows init/end | §1.11 stream-lifecycle | *(documented, zlib manual)* |
 | core-inflate | concurrency/reentrancy | claimed | independent streams only | §1.5 thread-safety | *(documented, zlib FAQ)* |
 | core-inflate | resource complexity | disclaimed | caller caps expanded output | §1.12 decompression-bomb-resistance | *(documented, zlib manual)* |
+| core-inflate | authorization scope | N/A | single-trust-domain in-process API; no per-principal operations | §1.10 | *(documented, zlib API shape)* |
 | core-deflate | numeric domain | claimed | documented size types/ranges | §1.11 memory-safety-untrusted-input | *(documented, zlib manual)* |
 | core-deflate | failure atomicity | disclaimed | failed stream may require reset/end | §1.12 failure-state-atomicity | *(documented, zlib manual)* |
 | core-deflate | recursive/cyclic topology | N/A | byte streams are not object graphs | §1.7 | *(documented, zlib API shape)* |
@@ -153,6 +154,7 @@ component family):
 | core-deflate | reference lifecycle | claimed | stream lifetime follows init/end | §1.11 stream-lifecycle | *(documented, zlib manual)* |
 | core-deflate | concurrency/reentrancy | claimed | independent streams only | §1.5 thread-safety | *(documented, zlib FAQ)* |
 | core-deflate | resource complexity | disclaimed | caller selects memory level | §1.12 resource-budgeting | *(documented, zlib manual)* |
+| core-deflate | authorization scope | N/A | single-trust-domain in-process API; no per-principal operations | §1.10 | *(documented, zlib API shape)* |
 | gzip-file-api | numeric domain | claimed | documented lengths and offsets | §1.11 output-bound-honored | *(documented, zlib manual)* |
 | gzip-file-api | failure atomicity | disclaimed | I/O may partially advance file state | §1.12 failure-state-atomicity | *(documented, zlib manual)* |
 | gzip-file-api | recursive/cyclic topology | N/A | handles are not object graphs | §1.7 | *(documented, zlib API shape)* |
@@ -161,6 +163,7 @@ component family):
 | gzip-file-api | reference lifecycle | claimed | handle valid until `gzclose` | §1.11 stream-lifecycle | *(documented, zlib manual)* |
 | gzip-file-api | concurrency/reentrancy | disclaimed | shared handles need synchronization | §1.5 thread-safety | *(documented, zlib FAQ)* |
 | gzip-file-api | resource complexity | disclaimed | caller caps output and I/O | §1.12 decompression-bomb-resistance | *(documented, zlib manual)* |
+| gzip-file-api | authorization scope | N/A | single-trust-domain in-process API; no per-principal operations | §1.10 | *(documented, zlib API shape)* |
 
 ## 1.8 Assumptions and guarantees about outputs
 

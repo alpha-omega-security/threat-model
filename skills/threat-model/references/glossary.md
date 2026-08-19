@@ -89,8 +89,9 @@ maintainer. `VALID` and `MODEL-GAP` always fail safe.
 | **Violation symptom** | What you'd actually see if the property broke: a crash, out-of-bounds read/write, info leak, hang, wrong output, or runaway allocation. |
 | **Tier** | How serious a violation is: `security-critical` (a real vulnerability → CVE) or `correctness-only` (a bug, but not a security hole). |
 | **Disclaimed property** | Something the project deliberately does *not* promise, stated plainly so a report about it can be closed `BY-DESIGN`. Disclaiming the safe direction ("no thread-safety guaranteed") is a feature, not a cop-out — it tells integrators what they own. |
-| **False friend** | A feature that looks like a security guarantee but isn't: CRC ≠ MAC, a fast hash ≠ collision-resistant, a PRNG ≠ a secure RNG, a resource "sandbox" ≠ isolation. Called out so users don't lean on them. |
-| **Contract dimension** | A standard checklist axis the model forces a decision on for each component — numeric limits, failure atomicity, recursion/cycles, callbacks, serialization, object lifecycle, concurrency, and resource cost. Each is marked claimed, disclaimed, N/A, or unresolved so nothing is left implicit. |
+| **False friend** | A feature that looks like a security guarantee but isn't: CRC ≠ MAC, a fast hash ≠ collision-resistant, a PRNG ≠ a secure RNG, a resource "sandbox" ≠ isolation, authenticated ≠ authorized. Called out so users don't lean on them. |
+| **Contract dimension** | A standard checklist axis the model forces a decision on for each component — numeric limits, failure atomicity, recursion/cycles, callbacks, serialization, object lifecycle, concurrency, resource cost, and authorization scope. Each is marked claimed, disclaimed, N/A, or unresolved so nothing is left implicit. |
+| **Authorization scope** | Who is allowed to invoke which operations, and which side of the API owns that check. Distinct from authentication: authentication verifies who the caller is, authorization decides what that caller may do. A library usually disclaims it ("any caller that can reach the API may use all of it"); a service with roles has to say which operations need which role. |
 
 ---
 
@@ -100,6 +101,7 @@ maintainer. `VALID` and `MODEL-GAP` always fail safe.
 | --- | --- |
 | **Adversary model** | Who the attacker is, what they can and can't do, and what they're trying to achieve. A report requiring powers outside this model is out of scope. |
 | **Blast radius** | How much damage a wrong call could do. "Low-blast-radius" closes are the only ones a cautious *assumption* is allowed to make provisionally. |
+| **Principal** | The identity an operation is performed *as* — a user, tenant, role, or service account. An authorization decision reads a principal; if no code path does, the project has a single trust level. |
 | **Byzantine participant / honest fraction** | For distributed systems only: a participant who is authenticated but may act maliciously, and the threshold of honest participants the guarantees need (e.g., "fewer than 1/3 malicious"). |
 
 ---

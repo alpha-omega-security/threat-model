@@ -325,12 +325,25 @@ documented evidence only when the project publicly identifies it as normative.
   in-scope component family. Required dimensions are numeric domain and
   representational limits; failure/exception atomicity; recursive/cyclic
   topology; callback/collaborator execution; serialization/reconstruction;
-  reference/object lifecycle; concurrency/reentrancy; and resource complexity.
+  reference/object lifecycle; concurrency/reentrancy; resource complexity; and
+  authorization scope.
   Each row is `Component | Dimension | Status | Conditions / boundary |
   Routes to | Provenance`; status is `claimed`, `disclaimed`, `N/A — reason`,
   or `unresolved`. Each row routes to the owning §1.3/§1.5/§1.7/§1.10/§1.11/§1.12
   claim or a proposed-answer §1.18 question. Add domain-specific rows such as
   Unicode normalization or probabilistic-result semantics where applicable.
+- **Authorization scope** asks which side of the API owns the "who may invoke
+  what" decision, per component — coarse by design. `claimed`: the project
+  enforces it, and the §1.11 property's conditions name the roles or scopes
+  ("state-changing console commands require `admin_users` membership").
+  `disclaimed`: the caller or deployment owns the check — the common library
+  answer, stated as a §1.12 disclaimer ("any caller that can reach this API may
+  invoke all of it"). `N/A`: the component has a single trust level and no
+  per-principal operations (most in-process libraries). The row is **not** about
+  enforcement mechanics — where a check runs inside the project is
+  implementation, not contract. The disclaimer is the half doing the triage
+  work: "any authenticated caller may read any record here" closes an entire
+  class of reports as `BY-DESIGN` that would otherwise each escalate.
 - For stateful APIs, state the postcondition after validation, allocation,
   callback, or collaborator failure: unchanged, partially committed,
   best-effort cleanup, or unspecified.
@@ -388,7 +401,14 @@ losing their evidence.
 - Who the attacker is; capabilities they have and lack; what they are trying to
   do; which actors are explicitly out ("a caller controlling the process has
   already won").
-- Name the **deployment context** the actor list assumes. A context whose
+- For a project with an **authenticated surface**, stratify actors by privilege
+  level rather than averaging them into one "client": an *authenticated but
+  adversarial* user, an admin/operator, and (where roles exist) one actor per
+  role whose entitlements differ. Authenticating does not move an actor out of
+  scope — it is only trusted with its own entitlements. Put the privileges an
+  actor **lacks** in its Capabilities-excluded cell ("no `admin_users`
+  membership", "cannot reach the management port"), because that cell is what
+  an authorization report's `adversary-not-in-scope` route has to cite. A context whose
   adversary differs from that baseline — an enclave where the privileged host is
   hostile, a shared host, a sandboxed plugin — gets its own row or is marked
   unsupported in §1.3. Do not advertise a context in §1.2 and silently give it
@@ -530,7 +550,8 @@ The companion to §1.11 and the highest-value section for an integrator. State
 each plainly. Call out **"false-friend" properties** separately — features that
 look like a security property but are not ("X is provided for A; sometimes
 mistaken for B, which it does not satisfy": CRC≠MAC, non-crypto hash≠collision-
-resistant, PRNG≠CSPRNG, resource-"sandbox"≠isolation). Name the **well-known
+resistant, PRNG≠CSPRNG, resource-"sandbox"≠isolation,
+authenticated≠authorized — a login check is not a permission check). Name the **well-known
 attack classes** for this category the project leaves to the caller (compression
 bombs, XXE, ReDoS, billion-laughs) — one sentence each.
 Promote every `disclaimed` contract-dimension row here or to §1.3. State
@@ -630,6 +651,17 @@ every other safeguard the model has. Four rules keep that from happening.
    whose own component set includes this entry's component. A disclaimer written
    for the compressor does not discharge a report against the decompressor.
 
+One recurring false positive worth pre-empting here by name, because
+agent-driven variant analysis mass-produces it: **sibling asymmetry**. Two
+entry points handle the same object and one applies a narrower authorization
+check than the other. The asymmetry is an inconsistency, not by itself a
+finding — the broader path can be the intended contract, and the narrower one
+defence-in-depth or an artefact of history. Route on the claimed
+authorization scope (the §1.7 matrix row and its §1.11/§1.12 claim), never on
+the difference between siblings. A model that records which scope is claimed
+retires this class automatically; one that records only observed behaviour
+re-raises it forever.
+
 ## 1.16 Conditions that would change this model
 
 Kinds of change that trigger a revision (new public API, new input format, new
@@ -673,6 +705,17 @@ The **closed set** of outcomes, each citing the licensing section:
 Multiple failed preconditions do not by themselves create a `MODEL-GAP`; this
 order resolves them. Use `MODEL-GAP` when the model is silent or genuinely
 contradictory.
+
+**Authorization findings take existing routes — there is no authorization
+disposition, deliberately.** A report that the caller was supposed to prevent
+(the check is a §1.7 `caller_must_enforce` obligation) →
+`OUT-OF-MODEL: trusted-input`. A report requiring a privilege the actor's
+§1.10 row excludes → `OUT-OF-MODEL: adversary-not-in-scope`. A report against
+an access the model disclaims ("any authenticated caller may invoke this") →
+`BY-DESIGN: property-disclaimed`. A report violating a claimed
+`authorization` property → `VALID`. If none of those rows exist, the finding
+is `MODEL-GAP` — which means the §1.7 authorization-scope row was skipped, not
+that a new disposition is needed.
 
 **Optional triage-decision diagram.** For a non-expert triager, a Mermaid
 flowchart of the precedence above often reads faster than the numbered list.

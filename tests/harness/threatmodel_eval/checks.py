@@ -378,14 +378,14 @@ def check_coverage(model: Model) -> Iterable[Finding]:
                          if "component" in rows[0].lower()
                          and "dimension" in rows[0].lower()
                          and "status" in rows[0].lower()]
-        # Coverage is about the eight dimensions being present, not their exact
+        # Coverage is about the nine dimensions being present, not their exact
         # wording. The prose reference names them fully ("failure/exception
         # atomicity", "callback/collaborator execution", "reference/object
         # lifecycle"), the golden fixture uses shorter forms ("failure
         # atomicity"), and sidecar-schema.md uses hyphenated slugs
         # ("failure-atomicity"). Match on each dimension's distinctive invariant
         # token(s) — folding '-', '/', and whitespace to a space — so every
-        # legitimate spelling passes while all eight rows are still required.
+        # legitimate spelling passes while all nine rows are still required.
         def _fold(text: str) -> str:
             return re.sub(r"[-/\s]+", " ", text.lower())
         dimension_tokens = (
@@ -397,6 +397,7 @@ def check_coverage(model: Model) -> Iterable[Finding]:
             ("lifecycle",),             # reference/object lifecycle
             ("reentrancy",),            # concurrency/reentrancy
             ("complexity",),            # resource complexity
+            ("authorization",),         # authorization scope
         )
         matrix_text = _fold("\n".join(matrix_tables[0])) if matrix_tables else ""
         matrix_ok = (bool(matrix_tables)
@@ -405,8 +406,8 @@ def check_coverage(model: Model) -> Iterable[Finding]:
                              for toks in dimension_tokens))
         yield _f(
             "G2.contract-dimension-matrix", "G2-coverage", "error", matrix_ok,
-            "§1.7 contains all eight required contract dimensions" if matrix_ok
-            else "§1.7 must contain a contract-dimension matrix with all eight "
+            "§1.7 contains all nine required contract dimensions" if matrix_ok
+            else "§1.7 must contain a contract-dimension matrix with all nine "
                  "required dimensions",
             "§1.7",
         )

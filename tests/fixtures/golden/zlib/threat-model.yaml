@@ -1,9 +1,9 @@
 # threat-model.yaml — derived index; the prose threat model is canonical.
 schema: threat-model-sidecar/v2
 project: zlib
-prose_version: "threat-model.md@sha256:915aad1a1a1a5e33b7d4ac7b2bdbd27d8cef8d520d6dc16e8af5a594d63d3621"
+prose_version: "threat-model.md@sha256:df7a6fc97dbe8543992d82c99b718fe67ab2d1d08ad93b126de02f7173f11422"
 model_status: unratified-draft
-confidence: {documented: 68, maintainer: 0, inferred: 7}
+confidence: {documented: 71, maintainer: 0, inferred: 7}
 
 components:
   - name: core-inflate
@@ -77,6 +77,7 @@ contract_dimensions:
   - {component: core-inflate, dimension: reference-lifecycle, status: claimed, conditions: "stream lifetime follows init/end", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
   - {component: core-inflate, dimension: concurrency-reentrancy, status: claimed, conditions: "independent streams only", property_id: independent-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
   - {component: core-inflate, dimension: resource-complexity, status: disclaimed, conditions: "caller caps expanded output", property_id: decompression-bomb-resistance, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-inflate, dimension: authorization-scope, status: not-applicable, conditions: "single-trust-domain in-process API; no per-principal operations", provenance: {kind: documented, source: "zlib API shape"}}
   - {component: core-deflate, dimension: numeric-domain, status: claimed, conditions: "documented size types/ranges", property_id: memory-safety-untrusted-input, provenance: {kind: documented, source: "zlib manual"}}
   - {component: core-deflate, dimension: failure-atomicity, status: disclaimed, conditions: "failed stream may require reset/end", property_id: failure-state-atomicity, provenance: {kind: documented, source: "zlib manual"}}
   - {component: core-deflate, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "byte streams are not object graphs", provenance: {kind: documented, source: "zlib API shape"}}
@@ -85,6 +86,7 @@ contract_dimensions:
   - {component: core-deflate, dimension: reference-lifecycle, status: claimed, conditions: "stream lifetime follows init/end", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
   - {component: core-deflate, dimension: concurrency-reentrancy, status: claimed, conditions: "independent streams only", property_id: independent-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
   - {component: core-deflate, dimension: resource-complexity, status: disclaimed, conditions: "caller selects memory level", property_id: resource-budgeting, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: core-deflate, dimension: authorization-scope, status: not-applicable, conditions: "single-trust-domain in-process API; no per-principal operations", provenance: {kind: documented, source: "zlib API shape"}}
   - {component: gzip-file-api, dimension: numeric-domain, status: claimed, conditions: "documented lengths and offsets", property_id: output-bound-honored, provenance: {kind: documented, source: "zlib manual"}}
   - {component: gzip-file-api, dimension: failure-atomicity, status: disclaimed, conditions: "I/O may partially advance file state", property_id: failure-state-atomicity, provenance: {kind: documented, source: "zlib manual"}}
   - {component: gzip-file-api, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "handles are not object graphs", provenance: {kind: documented, source: "zlib API shape"}}
@@ -93,6 +95,7 @@ contract_dimensions:
   - {component: gzip-file-api, dimension: reference-lifecycle, status: claimed, conditions: "handle valid until gzclose", property_id: stream-lifecycle, provenance: {kind: documented, source: "zlib manual"}}
   - {component: gzip-file-api, dimension: concurrency-reentrancy, status: disclaimed, conditions: "shared handles need synchronization", property_id: shared-stream-thread-safety, provenance: {kind: documented, source: "zlib FAQ"}}
   - {component: gzip-file-api, dimension: resource-complexity, status: disclaimed, conditions: "caller caps output and I/O", property_id: decompression-bomb-resistance, provenance: {kind: documented, source: "zlib manual"}}
+  - {component: gzip-file-api, dimension: authorization-scope, status: not-applicable, conditions: "single-trust-domain in-process API; no per-principal operations", provenance: {kind: documented, source: "zlib API shape"}}
 
 outputs:
   - component: core-inflate

@@ -117,7 +117,7 @@ def test_responsibility_may_enforce_nothing_for_unsupported_surface():
 
 
 def test_contract_dimension_matrix_accepts_hyphenated_slugs():
-    """The §1.7 matrix may spell the eight dimensions as sidecar-style slugs.
+    """The §1.7 matrix may spell the nine dimensions as sidecar-style slugs.
 
     sidecar-schema.md defines the canonical dimension enum with hyphens
     (``recursive-cyclic-topology``) while the prose reference writes them with
@@ -134,7 +134,8 @@ def test_contract_dimension_matrix_accepts_hyphenated_slugs():
                .replace("serialization/reconstruction", "serialization-reconstruction")
                .replace("reference lifecycle", "reference-lifecycle")
                .replace("concurrency/reentrancy", "concurrency-reentrancy")
-               .replace("resource complexity", "resource-complexity"))
+               .replace("resource complexity", "resource-complexity")
+               .replace("authorization scope", "authorization-scope"))
     report = run_prose_checks(Model.from_text(slugged))
     assert "G2.contract-dimension-matrix" not in report.failed_check_ids()
 

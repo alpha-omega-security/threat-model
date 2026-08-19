@@ -123,7 +123,7 @@ actually proved rather than that it happened. Report, in one short paragraph:
   or quietly over-disclaiming; say which.
 - **Contradictions**, with pointers to the §1.18 questions they raised.
 
-Example: *"Backtested 22 findings (14 clusters, all 8 applicable dimensions); 17
+Example: *"Backtested 22 findings (14 clusters, all 9 applicable dimensions); 17
 carry a real historical outcome, 5 synthesized. Routed 9 VALID, 6
 BY-DESIGN: property-disclaimed, 5 OUT-OF-MODEL, 2 escalated, 0 MODEL-GAP. All 11
 historically-fixed items routed VALID. 50% of the corpus closes. Two

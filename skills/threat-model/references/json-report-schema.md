@@ -57,8 +57,8 @@ contributing record is `inferred` or `assumption`, the whole block is
 the same way: `documented` = sidecar `documented` + `maintainer`;
 `inferred` = sidecar `inferred` + `assumption`. It must equal the §1.1
 header counts collapsed identically. Golden zlib: sidecar
-`{documented: 68, maintainer: 0, inferred: 7}` → JSON
-`{documented: 68, inferred: 7}`. The block is optional in the schema —
+`{documented: 71, maintainer: 0, inferred: 7}` → JSON
+`{documented: 71, inferred: 7}`. The block is optional in the schema —
 emit it anyway; it is how a consumer sees how much of the model is
 unratified.
 
@@ -226,7 +226,7 @@ The JSON is not the model. It drops:
 - `prose_version` — the JSON has no binding to the prose bytes it came
   from, only `commit` + `date`
 - `generation` metadata
-- `contract_dimensions` — all eight, per component
+- `contract_dimensions` — all nine, per component
 - disclaimed-property **tiers** — so the assumption security-critical floor
   is invisible
 - `obligation_id` and `control_kinds`
@@ -257,7 +257,7 @@ claim that actually discharges its entry.
   "date": "2026-08-07",
   "scope_subpath": null,
   "description": "In-process compression and decompression of application data, linked directly into a host program. zlib ships as a library with no daemon or privileged mode. The caller is trusted for the process; the compressed input bytes are the untrusted surface.",
-  "confidence": {"documented": 68, "inferred": 7},
+  "confidence": {"documented": 71, "inferred": 7},
 
   "components": [
     {"name": "core-inflate", "entry_points": ["inflate", "inflateInit2"], "touches": [], "in_scope": true, "provenance": "documented", "source": "zlib manual"},

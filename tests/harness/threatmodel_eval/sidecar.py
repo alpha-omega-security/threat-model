@@ -22,16 +22,18 @@ _STANCE = {"supported", "dev-only", "discouraged", "unsupported"}
 _TIER = {"security-critical", "correctness-only"}
 _PROPERTY_KIND = {
     "memory-safety", "output-sanitization", "resource-bound", "availability",
-    "confidentiality", "integrity", "authentication", "correctness",
+    "confidentiality", "integrity", "authentication", "authorization",
+    "correctness",
 }
 _CONTROL_KIND = {
     "data", "size", "rate", "type-class", "callback-code", "object-topology",
     "collaborator-implementation", "resource-name", "serialized-state",
+    "credential", "principal",
 }
 _DIMENSIONS = {
     "numeric-domain", "failure-atomicity", "recursive-cyclic-topology",
     "callback-execution", "serialization-reconstruction", "reference-lifecycle",
-    "concurrency-reentrancy", "resource-complexity",
+    "concurrency-reentrancy", "resource-complexity", "authorization-scope",
 }
 _DIM_STATUS = {"claimed", "disclaimed", "not-applicable", "unresolved"}
 _EFFECT = {"preserves", "narrows", "voids"}

@@ -286,8 +286,12 @@ disposition_statuses:         # what the triager may DO with a closing route
   otherwise every non-trivial obligation has a stable `obligation_id`. Every
   operand has one or more `control_kinds` from `data`, `size`,
   `rate`, `type-class`, `callback-code`, `object-topology`,
-  `collaborator-implementation`, `resource-name`, or `serialized-state`.
-  Project-specific values use an `x-` prefix.
+  `collaborator-implementation`, `resource-name`, `serialized-state`,
+  `credential`, or `principal`. `credential` marks an operand presented to
+  authenticate (a password, token, or key); `principal` marks an operand naming
+  the identity or role an operation is scoped to (a user ID, tenant, or role
+  name an authorization decision reads). Project-specific values use an `x-`
+  prefix.
 - **`obligation_id` is unique across ALL entry points, not within one.** The IDs
   are nested inside `entry_points[].parameters[]`, which makes "unique within
   its list" the natural reading and the wrong one — `SC.obligation-id-unique`
@@ -304,9 +308,17 @@ disposition_statuses:         # what the triager may DO with a closing route
 - `contract_dimensions[].dimension` is one of `numeric-domain`,
   `failure-atomicity`, `recursive-cyclic-topology`, `callback-execution`,
   `serialization-reconstruction`, `reference-lifecycle`,
-  `concurrency-reentrancy`, or `resource-complexity`. Domain-specific values
-  use an `x-` prefix.
-- Every **in-scope component × each of the eight required dimensions** appears
+  `concurrency-reentrancy`, `resource-complexity`, or `authorization-scope`.
+  Domain-specific values use an `x-` prefix.
+- `authorization-scope` records which side of the API owns the "who may invoke
+  what" decision — coarse by design. `claimed` means the project enforces it
+  (the property's conditions name the roles or scopes); `disclaimed` means the
+  caller or deployment owns the check (the common library answer: any caller
+  that can reach the API may invoke all of it); `not-applicable` means the
+  component has a single trust level and no per-principal operations. It does
+  **not** record per-record enforcement mechanics — where a check runs inside
+  the project is implementation, not contract.
+- Every **in-scope component × each of the nine required dimensions** appears
   exactly once; use `not-applicable` with a reason rather than omitting a row.
   Domain-specific `x-` dimensions are additional. `claimed` and `disclaimed`
   rows require a `property_id` resolving to the corresponding property list.
@@ -357,7 +369,10 @@ disposition_statuses:         # what the triager may DO with a closing route
 - Claimed properties require `kind`, non-empty `components`, `conditions`,
   `tier`, symptoms, and provenance. `kind` is one of `memory-safety`,
   `output-sanitization`, `resource-bound`, `availability`, `confidentiality`,
-  `integrity`, `authentication`, `correctness`, or an `x-` value. A claimed
+  `integrity`, `authentication`, `authorization`, `correctness`, or an `x-`
+  value. `authentication` covers verifying who a caller is; `authorization`
+  covers what a verified caller may do — a property naming roles, scopes, or
+  per-principal restrictions is `authorization`, not `authentication`. A claimed
   property with `provenance.kind: inferred` **must not** carry
   `tier: security-critical` — an unratified guarantee at that tier is a claim the
   project never made (§1.11).

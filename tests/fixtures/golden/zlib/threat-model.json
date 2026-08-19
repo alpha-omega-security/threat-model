@@ -6,7 +6,7 @@
   "scope_subpath": null,
   "description": "In-process compression and decompression of application data, linked directly into a host program. zlib ships as a library with no daemon or privileged mode. The caller is trusted for the process; the compressed input bytes are the untrusted surface.",
   "confidence": {
-    "documented": 68,
+    "documented": 71,
     "inferred": 7
   },
   "components": [
