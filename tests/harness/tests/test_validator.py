@@ -234,3 +234,83 @@ def test_open_question_ids_recognizes_all_permitted_formats(body):
 ])
 def test_section_is_na_only_for_a_whole_body_marker(name, body, expected):
     assert parse.Section("10", "1.10 Adversary model", body).is_na is expected, name
+
+
+def test_contract_dimension_matrix_rejects_word_without_row():
+    """A dimension must appear in a Dimension *cell*, not merely in the table.
+
+    The check folds the §1.7 matrix and looks for each dimension's invariant
+    token(s). Searching the whole joined table cannot tell a dimension row from
+    the same word appearing in another row's conditions, routes or provenance,
+    so a model with no resource-complexity row at all passed as long as some
+    other row happened to say "complexity".
+    """
+    text = mutate.GOLDEN_MODEL.read_text(encoding="utf-8")
+    without_rows = "\n".join(line for line in text.splitlines()
+                             if "| resource complexity |" not in line)
+
+    # Control: with the rows simply gone, the check already failed.
+    assert "G2.contract-dimension-matrix" in run_prose_checks(
+        Model.from_text(without_rows)).failed_check_ids()
+
+    # The bypass: put the token back somewhere that is not a Dimension cell.
+    smuggled = without_rows.replace(
+        "independent streams only",
+        "independent streams only; no added complexity")
+    assert "complexity" in smuggled
+    assert "| resource complexity |" not in smuggled
+    assert "G2.contract-dimension-matrix" in run_prose_checks(
+        Model.from_text(smuggled)).failed_check_ids()
+
+
+# Every member of the three sidecar enums, listed explicitly. The golden
+# fixture only exercises the values it happens to use, so a value no fixture
+# uses can be deleted from the enum with the whole suite still green -- which
+# defeats this file's stated purpose. Removing any value below fails this test
+# twice: the inventory assertion, and the round-trip that follows it.
+_EXPECTED_PROPERTY_KIND = {
+    "memory-safety", "output-sanitization", "resource-bound", "availability",
+    "confidentiality", "integrity", "authentication", "correctness",
+}
+_EXPECTED_CONTROL_KIND = {
+    "data", "size", "rate", "type-class", "callback-code", "object-topology",
+    "collaborator-implementation", "resource-name", "serialized-state",
+}
+_EXPECTED_DIMENSIONS = {
+    "numeric-domain", "failure-atomicity", "recursive-cyclic-topology",
+    "callback-execution", "serialization-reconstruction", "reference-lifecycle",
+    "concurrency-reentrancy", "resource-complexity",
+}
+
+
+def test_sidecar_enum_inventory_is_pinned():
+    """Deleting a value from any sidecar enum must be visible here.
+
+    Adding one must be visible too: a new value has to be listed here, and the
+    round-trips below then prove it is actually accepted rather than merely
+    declared.
+    """
+    from threatmodel_eval import sidecar as _sidecar
+    assert _sidecar._PROPERTY_KIND == _EXPECTED_PROPERTY_KIND
+    assert _sidecar._CONTROL_KIND == _EXPECTED_CONTROL_KIND
+    assert _sidecar._DIMENSIONS == _EXPECTED_DIMENSIONS
+
+
+@pytest.mark.parametrize("kind", sorted(_EXPECTED_PROPERTY_KIND))
+def test_every_property_kind_is_accepted(kind):
+    """Each declared property kind must validate, not just appear in the enum."""
+    sidecar = copy.deepcopy(load_sidecar(mutate.GOLDEN_SIDECAR))
+    sidecar["properties_claimed"][0]["kind"] = kind
+    model = Model.from_file(mutate.GOLDEN_MODEL)
+    assert "SC.claimed-tier-symptom" not in run_sidecar_checks(
+        sidecar, model).failed_check_ids()
+
+
+@pytest.mark.parametrize("kind", sorted(_EXPECTED_CONTROL_KIND))
+def test_every_control_kind_is_accepted(kind):
+    """Each declared control kind must validate, not just appear in the enum."""
+    sidecar = copy.deepcopy(load_sidecar(mutate.GOLDEN_SIDECAR))
+    sidecar["entry_points"][0]["parameters"][0]["control_kinds"] = [kind]
+    model = Model.from_file(mutate.GOLDEN_MODEL)
+    assert "SC.param-control-kinds" not in run_sidecar_checks(
+        sidecar, model).failed_check_ids()

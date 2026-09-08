@@ -398,10 +398,34 @@ def check_coverage(model: Model) -> Iterable[Finding]:
             ("reentrancy",),            # concurrency/reentrancy
             ("complexity",),            # resource complexity
         )
-        matrix_text = _fold("\n".join(matrix_tables[0])) if matrix_tables else ""
+        # Match each dimension against the Dimension *cell* of some row, not
+        # against the whole table joined together. A substring search over the
+        # joined text cannot tell a dimension row from the same word appearing
+        # in another row's conditions, routes or provenance, so a model missing
+        # a dimension entirely still passed whenever another row happened to
+        # use that dimension's token in prose.
+        def _dimension_cells(rows: list[str]) -> list[str]:
+            header = [c.strip().lower()
+                      for c in rows[0].strip().strip("|").split("|")]
+            idx = next((i for i, c in enumerate(header) if "dimension" in c), None)
+            if idx is None:
+                return []
+            cells = []
+            for row in rows[1:]:
+                parts = [c.strip() for c in row.strip().strip("|").split("|")]
+                if len(parts) <= idx:
+                    continue
+                cell = parts[idx]
+                if not cell or set(cell) <= set("-: "):  # separator row
+                    continue
+                cells.append(_fold(cell))
+            return cells
+
+        dimension_cells = _dimension_cells(matrix_tables[0]) if matrix_tables else []
         matrix_ok = (bool(matrix_tables)
                      and "provenance" in matrix_tables[0][0].lower()
-                     and all(all(tok in matrix_text for tok in toks)
+                     and all(any(all(tok in cell for tok in toks)
+                                 for cell in dimension_cells)
                              for toks in dimension_tokens))
         yield _f(
             "G2.contract-dimension-matrix", "G2-coverage", "error", matrix_ok,
