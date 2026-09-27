@@ -39,8 +39,16 @@ Then open the target checkout and invoke:
 In an interactive Copilot CLI session:
 
 ```text
-/plugin marketplace add https://github.com/alpha-omega-security/threat-model
+/plugin marketplace add alpha-omega-security/threat-model
 /plugin install threat-model@threat-model
+```
+
+If you're running Copilot against a local checkout without installing from the marketplace, copy the skills into your repo's `.github/skills/` directory:
+
+```bash
+THREAT_MODEL_REPO=/path/to/cloned/threat-model
+mkdir -p .github/skills
+cp -R "$THREAT_MODEL_REPO/skills/"* .github/skills/
 ```
 
 ### Other compatible agents
